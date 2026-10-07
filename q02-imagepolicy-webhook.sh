@@ -207,7 +207,7 @@ check)
 
   # Check 5: Test pod gets denied by the webhook
   if kubectl get nodes &>/dev/null; then
-    local test_output=$(kubectl run webhook-test --image=nginx --restart=Never 2>&1 || true)
+    test_output=$(kubectl run webhook-test --image=nginx --restart=Never 2>&1 || true)
     kubectl delete pod webhook-test --ignore-not-found &>/dev/null 2>&1 || true
     if echo "$test_output" | grep -qi "denied\|forbidden\|rejected\|error"; then
       pass "Test pod was DENIED by ImagePolicyWebhook"
