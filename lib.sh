@@ -27,6 +27,91 @@ detect_env() {
 
 ENV_TYPE=$(detect_env)
 
+# Restore API server to clean state between questions
+# Removes ImagePolicyWebhook, audit flags, webhook volumes — anything previous Qs added
+clean_apiserver() {
+  if [ "$ENV_TYPE" != "kubeadm" ]; then
+    return 0
+  fi
+
+  local manifest="/etc/kubernetes/manifests/kube-apiserver.yaml"
+  if [ ! -f "$manifest" ]; then
+    return 0
+  fi
+
+  # Back up first if no backup exists
+  if [ ! -f /root/kube-apiserver.yaml.clean ]; then
+    # Only save as clean if API server is currently working
+    if kubectl get nodes &>/dev/null 2>&1; then
+      sudo cp "$manifest" /root/kube-apiserver.yaml.clean
+    fi
+  fi
+
+  local needs_restart=false
+
+  # Remove ImagePolicyWebhook from admission plugins
+  if sudo grep -q 'ImagePolicyWebhook' "$manifest" 2>/dev/null; then
+    sudo sed -i 's/,ImagePolicyWebhook//g; s/ImagePolicyWebhook,//g; s/ImagePolicyWebhook//g' "$manifest"
+    needs_restart=true
+  fi
+
+  # Remove admission-control-config-file flag
+  if sudo grep -q 'admission-control-config-file' "$manifest" 2>/dev/null; then
+    sudo sed -i '/admission-control-config-file/d' "$manifest"
+    needs_restart=true
+  fi
+
+  # Remove audit flags
+  if sudo grep -q 'audit-log-path\|audit-policy-file\|audit-log-max' "$manifest" 2>/dev/null; then
+    sudo sed -i '/audit-log-path/d; /audit-policy-file/d; /audit-log-maxage/d; /audit-log-maxbackup/d; /audit-log-maxsize/d' "$manifest"
+    needs_restart=true
+  fi
+
+  # Remove webhook-config volume and mount
+  if sudo grep -q 'webhook-config' "$manifest" 2>/dev/null; then
+    sudo python3 -c "
+import yaml
+with open('$manifest') as f:
+    m = yaml.safe_load(f)
+c = m['spec']['containers'][0]
+c['volumeMounts'] = [v for v in c.get('volumeMounts',[]) if v.get('name') not in ('webhook-config','audit-policy','audit-logs')]
+m['spec']['volumes'] = [v for v in m['spec'].get('volumes',[]) if v.get('name') not in ('webhook-config','audit-policy','audit-logs')]
+with open('$manifest','w') as f:
+    yaml.dump(m, f, default_flow_style=False)
+" 2>/dev/null || true
+    needs_restart=true
+  fi
+
+  if [ "$needs_restart" = "true" ]; then
+    info "Cleaned API server from previous question changes..."
+    sleep 15
+    for i in $(seq 1 20); do
+      if kubectl get nodes &>/dev/null 2>&1; then
+        break
+      fi
+      sleep 3
+    done
+  fi
+
+  # Clean up namespaces from previous questions (keep system namespaces)
+  if kubectl get nodes &>/dev/null 2>&1; then
+    for ns in production database restricted sec-ns sbom neuron serviceaccount token-ns bright-banyan security-test static-test trivy-scan istio-example; do
+      kubectl delete namespace "$ns" --ignore-not-found --wait=false &>/dev/null 2>&1 || true
+    done
+  fi
+
+  # Restore kubelet config if backup exists
+  if [ -f /var/lib/kubelet/config.yaml.bak ]; then
+    sudo cp /var/lib/kubelet/config.yaml.bak /var/lib/kubelet/config.yaml
+    sudo systemctl restart kubelet &>/dev/null 2>&1 || true
+  fi
+
+  # Clean up leftover files from other questions
+  rm -f ~/nginx-deployment.yaml ~/sbom-deployment.yaml ~/report.spdx 2>/dev/null || true
+  rm -rf ~/cks/docker 2>/dev/null || true
+  rm -rf ~/monitor 2>/dev/null || true
+}
+
 pass() { echo -e "  ${GREEN}[PASS]${NC} $1"; }
 fail() { echo -e "  ${RED}[FAIL]${NC} $1"; }
 skip() { echo -e "  ${YELLOW}[SKIP]${NC} $1"; }

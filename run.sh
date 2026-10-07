@@ -121,6 +121,7 @@ case "$MODE" in
     header "Q${NUM}: ${NAME}"
     echo -e "  Target time: ${BOLD}${TARGET}${NC}"
     echo ""
+    clean_apiserver
     bash "$SCRIPT" setup
     echo ""
     timer_start
@@ -153,6 +154,7 @@ case "$MODE" in
     ;;
   reset)
     header "Q${NUM}: ${NAME} — Reset"
+    clean_apiserver
     bash "$SCRIPT" setup
     echo ""
     timer_start
