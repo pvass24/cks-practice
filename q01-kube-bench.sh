@@ -29,25 +29,34 @@ do_setup() {
 
   info "Weakening kubelet config to create insecure baseline..."
 
-  # Patch kubelet config: anonymous.enabled=true, webhook.enabled=false, authorization.mode=AlwaysAllow
   if [ -f "$KUBELET_CONFIG" ]; then
     cp "$KUBELET_CONFIG" "${KUBELET_CONFIG}.bak"
 
-    # Set anonymous auth enabled
-    sed -i 's/anonymous:/anonymous:\n    enabled: true/' "$KUBELET_CONFIG" 2>/dev/null || true
-    sed -i '/anonymous:/{n;s/enabled: false/enabled: true/}' "$KUBELET_CONFIG"
+    python3 - "$KUBELET_CONFIG" <<'PYEOF'
+import yaml, sys
+config_path = sys.argv[1]
+with open(config_path, "r") as f:
+    config = yaml.safe_load(f)
 
-    # Set webhook enabled false
-    sed -i '/webhook:/{n;s/enabled: true/enabled: false/}' "$KUBELET_CONFIG"
+config.setdefault("authentication", {})
+config["authentication"].setdefault("anonymous", {})
+config["authentication"]["anonymous"]["enabled"] = True
 
-    # Set authorization mode to AlwaysAllow
-    sed -i 's/mode: Webhook/mode: AlwaysAllow/' "$KUBELET_CONFIG"
+config["authentication"].setdefault("webhook", {})
+config["authentication"]["webhook"]["enabled"] = False
+
+config.setdefault("authorization", {})
+config["authorization"]["mode"] = "AlwaysAllow"
+
+with open(config_path, "w") as f:
+    yaml.dump(config, f, default_flow_style=False)
+print("  kubelet config weakened.")
+PYEOF
   else
     fail "Kubelet config not found at $KUBELET_CONFIG"
     exit 1
   fi
 
-  # Patch etcd manifest: set --client-cert-auth=false
   if [ -f "$ETCD_MANIFEST" ]; then
     cp "$ETCD_MANIFEST" "${ETCD_MANIFEST}.bak"
     sed -i 's/--client-cert-auth=true/--client-cert-auth=false/' "$ETCD_MANIFEST"
