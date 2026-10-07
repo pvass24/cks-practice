@@ -13,6 +13,20 @@ do_setup() {
     exit 0
   fi
 
+  # Install kube-bench if not present
+  if ! command -v kube-bench &>/dev/null; then
+    info "Installing kube-bench..."
+    curl -sL https://github.com/aquasecurity/kube-bench/releases/download/v0.8.0/kube-bench_0.8.0_linux_amd64.tar.gz | tar xz -C /tmp
+    sudo mv /tmp/kube-bench /usr/local/bin/
+    sudo mkdir -p /etc/kube-bench
+    if [ -d /tmp/cfg ]; then
+      sudo cp -r /tmp/cfg /etc/kube-bench/
+    fi
+    pass "kube-bench installed"
+  else
+    pass "kube-bench already installed"
+  fi
+
   info "Weakening kubelet config to create insecure baseline..."
 
   # Patch kubelet config: anonymous.enabled=true, webhook.enabled=false, authorization.mode=AlwaysAllow
@@ -49,17 +63,19 @@ do_setup() {
   echo ""
   pass "Setup complete. The kubelet and etcd are now insecure."
   echo ""
-  echo "TASK: Fix the following CIS benchmark failures:"
-  echo "  1. Kubelet anonymous authentication must be disabled"
-  echo "  2. Kubelet authorization mode must be Webhook"
-  echo "  3. Kubelet webhook authentication must be enabled"
-  echo "  4. ETCD client-cert-auth must be true"
+  echo "TASK: A CIS benchmark scan has flagged critical violations."
   echo ""
-  echo "Files to edit:"
-  echo "  - $KUBELET_CONFIG"
-  echo "  - $ETCD_MANIFEST"
+  echo "  1. Run kube-bench to identify the failures:"
+  echo "     kube-bench run --targets node"
+  echo "     kube-bench run --targets etcd"
   echo ""
-  echo "After changes: systemctl restart kubelet"
+  echo "  2. Fix ALL reported violations in:"
+  echo "     - $KUBELET_CONFIG"
+  echo "     - $ETCD_MANIFEST"
+  echo ""
+  echo "  3. Restart affected components so changes take effect."
+  echo ""
+  echo "  When done: ./run.sh 1 check"
   echo ""
   timer_start
 }
