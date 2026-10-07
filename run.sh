@@ -93,7 +93,7 @@ list_questions() {
   echo ""
 }
 
-if [ $# -eq 0 ]; then
+if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "help" ]; then
   list_questions
   exit 0
 fi
