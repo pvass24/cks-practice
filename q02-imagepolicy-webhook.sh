@@ -102,6 +102,22 @@ KCEOF
     sudo sed -i '/--enable-admission-plugins/a\    - --admission-control-config-file=/etc/kubernetes/webhook/admission-config.yml' "$APISERVER_MANIFEST"
   fi
 
+  # Wait for API server to come back after manifest change
+  info "Waiting for API server to restart..."
+  sleep 10
+  for i in $(seq 1 30); do
+    if kubectl get nodes &>/dev/null; then
+      pass "API server is healthy"
+      break
+    fi
+    if [ "$i" -eq 30 ]; then
+      fail "API server did not come back — check: crictl logs \$(crictl ps -a | grep apiserver | head -1 | awk '{print \$1}')"
+      exit 1
+    fi
+    echo -n "."
+    sleep 3
+  done
+
   info "Deploying a simple webhook server pod..."
   kubectl apply -f - <<'PODEOF'
 apiVersion: v1
@@ -120,12 +136,21 @@ spec:
 PODEOF
 
   echo ""
-  pass "Setup complete."
+  pass "Setup complete. Environment is ready."
   echo ""
-  info "TASK: Configure ImagePolicyWebhook admission controller."
-  info "  1. Edit /etc/kubernetes/webhook/image-policy-config.yml — set defaultAllow to false"
-  info "  2. Edit /etc/kubernetes/webhook/kube-config.yml — set server URL (e.g. https://image-policy-webhook:1323/image_policy)"
-  info "  3. Add ImagePolicyWebhook to --enable-admission-plugins in kube-apiserver"
+  echo -e "  ${BOLD}TASK: Configure ImagePolicyWebhook admission controller${NC}"
+  echo ""
+  echo "  Files to edit:"
+  echo "    1. /etc/kubernetes/webhook/admission-config.yml"
+  echo "       → set defaultAllow to false (fail-closed)"
+  echo ""
+  echo "    2. /etc/kubernetes/webhook/kube-config.yml"
+  echo "       → set server URL to the webhook endpoint"
+  echo ""
+  echo "    3. /etc/kubernetes/manifests/kube-apiserver.yaml"
+  echo "       → add ImagePolicyWebhook to --enable-admission-plugins"
+  echo ""
+  echo "  When ready: ./run.sh 2 check"
   echo ""
   timer_start
   ;;
@@ -147,7 +172,7 @@ check)
   if sudo grep -q 'defaultAllow: false' /etc/kubernetes/webhook/admission-config.yml 2>/dev/null || \
      sudo grep -q 'defaultAllow: false' /etc/kubernetes/webhook/image-policy-config.yml 2>/dev/null; then
     pass "defaultAllow is set to false"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "defaultAllow is still true (must be false)"
   fi
@@ -156,7 +181,7 @@ check)
   SERVER_URL=$(sudo grep -A2 'cluster:' /etc/kubernetes/webhook/kube-config.yml 2>/dev/null | grep 'server:' | head -1 | awk '{print $2}' | tr -d '"')
   if [ -n "$SERVER_URL" ] && [ "$SERVER_URL" != '""' ]; then
     pass "kube-config.yml server URL is set: $SERVER_URL"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "kube-config.yml server URL is empty"
   fi
@@ -167,7 +192,7 @@ check)
     PLUGINS_LINE=$(sudo grep 'enable-admission-plugins' "$APISERVER_MANIFEST" | head -1)
     if echo "$PLUGINS_LINE" | grep -q 'ImagePolicyWebhook'; then
       pass "kube-apiserver has --enable-admission-plugins containing ImagePolicyWebhook"
-      ((SCORE++))
+      SCORE=$((SCORE + 1))
     else
       fail "ImagePolicyWebhook found in manifest but not in --enable-admission-plugins flag"
     fi
