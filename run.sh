@@ -30,14 +30,15 @@ question_name() {
     14) echo "TLS Secret Creation";;
     15) echo "Audit Policy & Logging";;
     16) echo "Docker Daemon Security";;
+    17) echo "HTTPS Ingress with Cilium";;
   esac
 }
 
 question_env() {
   case $1 in
-    1|2|3|5|6|7|16) echo "kubeadm";;
-    8|15)           echo "partial";;
-    *)              echo "any";;
+    1|2|3|5|6|7|16|17) echo "kubeadm";;
+    8|15)              echo "partial";;
+    *)                 echo "any";;
   esac
 }
 
@@ -49,6 +50,7 @@ question_target() {
     10) echo "6 min";;  11) echo "6 min";;  12) echo "5 min";;
     13) echo "3 min";;  14) echo "2 min";;  15) echo "10 min";;
     16) echo "5 min";;
+    17) echo "5 min";;
   esac
 }
 
@@ -69,7 +71,7 @@ list_questions() {
   echo ""
   printf "  ${BOLD}%-4s %-45s %-12s %-8s${NC}\n" "#" "Question" "Env" "Target"
   echo "  ────────────────────────────────────────────────────────────────────"
-  for i in $(seq 1 16); do
+  for i in $(seq 1 17); do
     local env=$(question_env "$i")
     local marker=""
     if [ "$env" = "kubeadm" ] && [ "$ENV_TYPE" = "kind" ]; then
@@ -102,7 +104,7 @@ HINT_LEVEL="${3:-1}"
 
 if [ "$NUM" = "all" ] && [ "$MODE" = "check" ]; then
   header "Grading All Questions"
-  for i in $(seq 1 16); do
+  for i in $(seq 1 17); do
     script=$(get_script "$i")
     echo -e "\n${BOLD}Q${i}: $(question_name "$i")${NC}"
     bash "$script" check 2>/dev/null || true
