@@ -14,9 +14,11 @@ NC='\033[0m'
 
 # Environment detection
 detect_env() {
-  if kind get clusters 2>/dev/null | grep -q .; then
+  if [ -f /etc/kubernetes/manifests/kube-apiserver.yaml ]; then
+    echo "kubeadm"
+  elif kind get clusters 2>/dev/null | grep -q . 2>/dev/null; then
     echo "kind"
-  elif kubectl get nodes -o jsonpath='{.items[0].metadata.labels.node-role\.kubernetes\.io/control-plane}' &>/dev/null 2>&1; then
+  elif kubectl get nodes &>/dev/null 2>&1; then
     echo "kubeadm"
   else
     echo "unknown"
