@@ -98,6 +98,7 @@ fi
 
 NUM="$1"
 MODE="${2:-setup}"
+HINT_LEVEL="${3:-1}"
 
 if [ "$NUM" = "all" ] && [ "$MODE" = "check" ]; then
   header "Grading All Questions"
@@ -126,6 +127,9 @@ case "$MODE" in
     header "Q${NUM}: ${NAME} — Grading"
     bash "$SCRIPT" check
     ;;
+  hint)
+    bash "$SCRIPT" hint "$HINT_LEVEL"
+    ;;
   solution)
     header "Q${NUM}: ${NAME} — Solution"
     bash "$SCRIPT" solution
@@ -137,7 +141,7 @@ case "$MODE" in
     timer_start
     ;;
   *)
-    echo "Usage: ./run.sh <num> [setup|check|solution|reset]"
+    echo "Usage: ./run.sh <num> [setup|check|hint [1-3]|solution|reset]"
     exit 1
     ;;
 esac

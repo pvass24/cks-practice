@@ -130,6 +130,63 @@ do_check() {
   fi
 }
 
+do_hint() {
+  local level="${2:-1}"
+  header "$QUESTION — HINT $level"
+
+  case "$level" in
+    1)
+      cat <<'HINT'
+SPEED: Find all failures instantly:
+
+  kube-bench run 2>/dev/null | grep "\[FAIL\]"
+
+Each FAIL line has a check number (e.g. 4.2.1). After fixing,
+verify just that one check:
+
+  kube-bench run --check 4.2.1
+HINT
+      ;;
+    2)
+      cat <<'HINT'
+SPEED: Find kubelet config path without guessing:
+
+  ps -ef | grep kubelet | grep -- --config
+
+SPEED: Jump straight to the auth section in vi:
+
+  vi /var/lib/kubelet/config.yaml
+  /anonymous          ← search for it
+
+ETCD is a static pod — editing the manifest auto-restarts it.
+Kubelet is a systemd service — you must restart it manually.
+HINT
+      ;;
+    3)
+      cat <<'HINT'
+SPEED: The 3 kubelet fields are all in the first 10 lines:
+
+  anonymous.enabled    false
+  webhook.enabled      true
+  authorization.mode   Webhook (not AlwaysAllow)
+
+SPEED: One-liner restart:
+
+  systemctl daemon-reload && systemctl restart kubelet
+
+SPEED: Verify node is healthy after:
+
+  kubectl get nodes
+HINT
+      ;;
+    *)
+      echo "No more hints. Run: ./run.sh 1 solution"
+      ;;
+  esac
+  echo ""
+  echo "Next hint: ./run.sh 1 hint $((level + 1))"
+}
+
 do_solution() {
   header "$QUESTION — SOLUTION"
 
@@ -163,9 +220,10 @@ SOLUTION
 case "${1:-}" in
   setup)    do_setup ;;
   check)    do_check ;;
+  hint)     do_hint "$@" ;;
   solution) do_solution ;;
   *)
-    echo "Usage: $0 {setup|check|solution}"
+    echo "Usage: $0 {setup|check|hint [1-3]|solution}"
     exit 1
     ;;
 esac
