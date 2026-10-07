@@ -128,6 +128,21 @@ case "$MODE" in
   check)
     header "Q${NUM}: ${NAME} — Grading"
     bash "$SCRIPT" check
+    # Auto-stop timer and show elapsed time
+    if [ -f /tmp/.cks-timer-start ]; then
+      source "$DIR/lib.sh"
+      timer_stop "$TARGET"
+    fi
+    ;;
+  timer)
+    if [ "${HINT_LEVEL:-}" = "stop" ]; then
+      source "$DIR/lib.sh"
+      timer_kill_bg
+      echo -e "${GREEN}Timer stopped.${NC}"
+    else
+      echo "Usage: ./run.sh timer stop"
+    fi
+    exit 0
     ;;
   hint)
     bash "$SCRIPT" hint "$HINT_LEVEL"
