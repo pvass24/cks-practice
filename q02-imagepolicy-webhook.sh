@@ -62,24 +62,19 @@ users:
       client-key: /etc/kubernetes/pki/apiserver.key
 KCEOF
 
-  # Mount webhook volume in kube-apiserver static pod
-  info "Adding webhook volume mount to kube-apiserver..."
+  # Back up kube-apiserver manifest
   APISERVER_MANIFEST="/etc/kubernetes/manifests/kube-apiserver.yaml"
+  info "Backing up kube-apiserver manifest to /root/kube-apiserver.yaml.bak..."
+  sudo cp "$APISERVER_MANIFEST" /root/kube-apiserver.yaml.bak
 
-  # Check if volume mount already exists
-  if ! sudo grep -q "webhook" "$APISERVER_MANIFEST" 2>/dev/null; then
-    # Add volume mount under containers[0].volumeMounts
+  # Only add volume mount — user adds the flags themselves
+  info "Adding webhook volume mount to kube-apiserver..."
+  if ! sudo grep -q "webhook-config" "$APISERVER_MANIFEST" 2>/dev/null; then
     sudo sed -i '/volumeMounts:/a\    - name: webhook-config\n      mountPath: /etc/kubernetes/webhook\n      readOnly: true' "$APISERVER_MANIFEST"
-    # Add volume under volumes
     sudo sed -i '/volumes:/a\  - name: webhook-config\n    hostPath:\n      path: /etc/kubernetes/webhook\n      type: DirectoryOrCreate' "$APISERVER_MANIFEST"
   fi
 
-  # Add admission-control-config-file flag if not present
-  if ! sudo grep -q "admission-control-config-file" "$APISERVER_MANIFEST" 2>/dev/null; then
-    sudo sed -i '/--enable-admission-plugins/a\    - --admission-control-config-file=/etc/kubernetes/webhook/admission-config.yml' "$APISERVER_MANIFEST"
-  fi
-
-  # Wait for API server to come back after manifest change
+  # Wait for API server to come back after volume mount change
   info "Waiting for API server to restart..."
   sleep 10
   for i in $(seq 1 30); do
@@ -88,8 +83,16 @@ KCEOF
       break
     fi
     if [ "$i" -eq 30 ]; then
-      fail "API server did not come back — check: crictl logs \$(crictl ps -a | grep apiserver | head -1 | awk '{print \$1}')"
-      exit 1
+      # Restore backup if API server won't come back
+      info "Restoring API server backup..."
+      sudo cp /root/kube-apiserver.yaml.bak "$APISERVER_MANIFEST"
+      sleep 15
+      if kubectl get nodes &>/dev/null; then
+        pass "API server recovered from backup"
+      else
+        fail "API server still down — run: sudo cp /root/kube-apiserver.yaml.bak $APISERVER_MANIFEST"
+        exit 1
+      fi
     fi
     echo -n "."
     sleep 3
@@ -131,6 +134,11 @@ PODEOF
   echo ""
   echo "    3. /etc/kubernetes/manifests/kube-apiserver.yaml"
   echo "       → add ImagePolicyWebhook to --enable-admission-plugins"
+  echo "       → add --admission-control-config-file pointing to admission-config.yml"
+  echo ""
+  echo "  ⚠  IMPORTANT: Set the server URL BEFORE enabling the plugin."
+  echo "     Wrong order = API server crash (fail-closed with no endpoint)."
+  echo "     Backup is at: /root/kube-apiserver.yaml.bak"
   echo ""
   echo "  Verify: Deploy a test pod and confirm it gets DENIED:"
   echo "    kubectl run test --image=nginx"
