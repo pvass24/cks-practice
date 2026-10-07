@@ -143,6 +143,7 @@ PODEOF
   echo "  Files to edit:"
   echo "    1. /etc/kubernetes/webhook/admission-config.yml"
   echo "       → set defaultAllow to false (fail-closed)"
+  echo "       → set allowTTL to 100"
   echo ""
   echo "    2. /etc/kubernetes/webhook/kube-config.yml"
   echo "       → set server URL to the webhook endpoint"
@@ -175,6 +176,19 @@ check)
     SCORE=$((SCORE + 1))
   else
     fail "defaultAllow is still true (must be false)"
+    echo -e "        ${YELLOW}Why: fail-closed means if the webhook is unreachable, ALL images"
+    echo -e "        are rejected. This prevents unscanned images from running.${NC}"
+  fi
+
+  # Check 2: allowTTL is 100
+  if sudo grep -q 'allowTTL: 100' /etc/kubernetes/webhook/admission-config.yml 2>/dev/null; then
+    pass "allowTTL is set to 100"
+    SCORE=$((SCORE + 1))
+  else
+    local current_ttl=$(sudo grep 'allowTTL' /etc/kubernetes/webhook/admission-config.yml 2>/dev/null | awk '{print $2}')
+    fail "allowTTL = ${current_ttl:-missing} (should be 100)"
+    echo -e "        ${YELLOW}Why: allowTTL controls how long (seconds) an allowed image is cached"
+    echo -e "        before re-checking with the webhook.${NC}"
   fi
 
   # Check 2: kube-config.yml has a non-empty server URL
@@ -200,7 +214,7 @@ check)
     fail "kube-apiserver manifest does not contain ImagePolicyWebhook"
   fi
 
-  score_report $SCORE 3
+  score_report $SCORE 4
   ;;
 
 # ─────────────────────────────────────────
