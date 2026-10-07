@@ -51,15 +51,20 @@ spec:
           runAsUser: 0
 EOF
 
+  info "Setup complete."
   echo ""
-  info "Setup complete. Fix the following security issues:"
-  info ""
-  info "  1. $DOCKERFILE — Change USER from root to a non-root user"
-  info "  2. $DEPLOY_YAML — Set privileged to false"
-  info "  3. $DEPLOY_YAML — Set readOnlyRootFilesystem to true"
-  info "  4. $DEPLOY_YAML — Set runAsUser to a non-zero UID"
-  info ""
-  info "When ready, run: $0 check"
+  echo -e "  ${BOLD}TASK: Fix security issues in the Dockerfile and deployment manifest${NC}"
+  echo ""
+  echo "  Files:"
+  echo "    ~/cks/docker/Dockerfile       — Change USER from root to a non-root user"
+  echo "    ~/cks/docker/deployment.yaml   — Fix the securityContext:"
+  echo ""
+  echo "  Requirements (deployment.yaml):"
+  echo "    - privileged: false"
+  echo "    - readOnlyRootFilesystem: true"
+  echo "    - runAsUser: non-zero UID"
+  echo ""
+  echo "  When ready: ./run.sh 13 check"
 }
 
 do_check() {

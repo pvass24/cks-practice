@@ -44,11 +44,21 @@ EOF
   info "Applying manifest (pods will be rejected by PSA)..."
   kubectl apply -f "$MANIFEST" 2>&1 || true
 
+  info "Setup complete."
   echo ""
-  info "Setup complete. The deployment exists but pods are blocked."
-  info "Fix the securityContext in $MANIFEST so a pod can run."
-  info ""
-  info "When ready, run: $0 check"
+  echo -e "  ${BOLD}TASK: Fix the deployment manifest so pods comply with PSA restricted${NC}"
+  echo ""
+  echo "  Namespace:  restricted"
+  echo "  Deployment: nginx-unprivileged"
+  echo "  Manifest:   ~/nginx-deployment.yaml"
+  echo ""
+  echo "  Requirements:"
+  echo "    - allowPrivilegeEscalation: false"
+  echo "    - runAsNonRoot: true"
+  echo "    - seccompProfile.type: RuntimeDefault"
+  echo "    - capabilities.drop: [ALL]"
+  echo ""
+  echo "  When ready: ./run.sh 4 check"
 }
 
 do_check() {

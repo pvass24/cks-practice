@@ -22,17 +22,19 @@ do_setup() {
   kubectl delete networkpolicy --all -n "$NS_PROD" 2>/dev/null || true
   kubectl delete networkpolicy --all -n "$NS_DB" 2>/dev/null || true
 
+  info "Setup complete."
   echo ""
-  info "Setup complete. Create two NetworkPolicies:"
-  info ""
-  info "  1. 'deny-policy' in '$NS_PROD':"
-  info "     - Select ALL pods"
-  info "     - Deny ALL ingress traffic"
-  info ""
-  info "  2. 'allow-from-production' in '$NS_DB':"
-  info "     - Allow ingress from namespace with label env=production"
-  info ""
-  info "When ready, run: $0 check"
+  echo -e "  ${BOLD}TASK: Create two NetworkPolicies to control ingress traffic${NC}"
+  echo ""
+  echo "  1. Name:       deny-policy"
+  echo "     Namespace:  production"
+  echo "     Behavior:   Select ALL pods, deny ALL ingress traffic"
+  echo ""
+  echo "  2. Name:       allow-from-production"
+  echo "     Namespace:  database"
+  echo "     Behavior:   Allow ingress from namespaces with label env=production"
+  echo ""
+  echo "  When ready: ./run.sh 9 check"
 }
 
 do_check() {

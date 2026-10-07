@@ -58,15 +58,17 @@ spec:
           secretName: ${SECRET_NAME}
 EOF
 
+  info "Setup complete."
   echo ""
-  info "Setup complete. The pod is pending because the TLS secret does not exist yet."
-  info ""
-  info "Create a TLS secret named '$SECRET_NAME' in namespace '$NAMESPACE'"
-  info "using the cert and key at:"
-  info "  $TLS_DIR/banyan.crt"
-  info "  $TLS_DIR/banyan.key"
-  info ""
-  info "When ready, run: $0 check"
+  echo -e "  ${BOLD}TASK: Create a TLS secret so the pending pod can start${NC}"
+  echo ""
+  echo "  Name:       bright-banyan"
+  echo "  Namespace:  bright-banyan"
+  echo "  Type:       kubernetes.io/tls"
+  echo "  Cert:       ~/tls/banyan.crt"
+  echo "  Key:        ~/tls/banyan.key"
+  echo ""
+  echo "  When ready: ./run.sh 14 check"
 }
 
 do_check() {

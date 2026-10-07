@@ -46,15 +46,20 @@ spec:
         emptyDir: {}
 EOF
 
+  info "Setup complete."
   echo ""
-  info "Setup complete. Harden the deployment '$DEPLOYMENT' in '$NAMESPACE':"
-  info ""
-  info "  - runAsUser: 32000"
-  info "  - readOnlyRootFilesystem: true"
-  info "  - allowPrivilegeEscalation: false"
-  info "  - Keep volumeMounts for /tmp and /var/cache/nginx"
-  info ""
-  info "When ready, run: $0 check"
+  echo -e "  ${BOLD}TASK: Harden the deployment with a securityContext${NC}"
+  echo ""
+  echo "  Deployment: secdep"
+  echo "  Namespace:  sec-ns"
+  echo ""
+  echo "  Requirements:"
+  echo "    - runAsUser: 32000"
+  echo "    - readOnlyRootFilesystem: true"
+  echo "    - allowPrivilegeEscalation: false"
+  echo "    - Keep existing volumeMounts for /tmp and /var/cache/nginx"
+  echo ""
+  echo "  When ready: ./run.sh 12 check"
 }
 
 do_check() {
