@@ -49,17 +49,34 @@ requires_kubeadm() {
   return 0
 }
 
-CKS_TIMER_PID_FILE="/tmp/.cks-timer.pid"
+CKS_STATE_DIR="${XDG_RUNTIME_DIR:-$HOME/.cache/cks-practice}"
+CKS_TIMER_PID_FILE="$CKS_STATE_DIR/timer.pid"
+CKS_TIMER_START_FILE="$CKS_STATE_DIR/timer-start"
+
+_ensure_state_dir() {
+  install -d -m 700 "$CKS_STATE_DIR" 2>/dev/null || mkdir -p "$CKS_STATE_DIR"
+  chmod 700 "$CKS_STATE_DIR"
+}
+
+_validate_numeric() {
+  local val="$1"
+  if echo "$val" | grep -qE '^[0-9]+$'; then
+    echo "$val"
+  else
+    date +%s
+  fi
+}
 
 timer_start() {
+  _ensure_state_dir
   timer_kill_bg
   export CKS_TIMER_START=$(date +%s)
-  echo "$CKS_TIMER_START" > /tmp/.cks-timer-start
+  install -m 600 /dev/null "$CKS_TIMER_START_FILE"
+  echo "$CKS_TIMER_START" > "$CKS_TIMER_START_FILE"
 
-  # Background process updates terminal title every second
   (
     while true; do
-      local start=$(cat /tmp/.cks-timer-start 2>/dev/null || echo "$CKS_TIMER_START")
+      local start=$(_validate_numeric "$(cat "$CKS_TIMER_START_FILE" 2>/dev/null || echo "$CKS_TIMER_START")")
       local now=$(date +%s)
       local elapsed=$((now - start))
       local mins=$((elapsed / 60))
@@ -68,6 +85,7 @@ timer_start() {
       sleep 1
     done
   ) &
+  install -m 600 /dev/null "$CKS_TIMER_PID_FILE"
   echo $! > "$CKS_TIMER_PID_FILE"
   disown
 
@@ -78,7 +96,8 @@ timer_start() {
 timer_kill_bg() {
   if [ -f "$CKS_TIMER_PID_FILE" ]; then
     local pid=$(cat "$CKS_TIMER_PID_FILE" 2>/dev/null)
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    pid=$(_validate_numeric "${pid:-0}")
+    if [ "$pid" -gt 0 ] && kill -0 "$pid" 2>/dev/null; then
       kill "$pid" 2>/dev/null || true
     fi
     rm -f "$CKS_TIMER_PID_FILE"
@@ -87,7 +106,7 @@ timer_kill_bg() {
 }
 
 timer_stop() {
-  local start=$(cat /tmp/.cks-timer-start 2>/dev/null || echo "${CKS_TIMER_START:-$(date +%s)}")
+  local start=$(_validate_numeric "$(cat "$CKS_TIMER_START_FILE" 2>/dev/null || echo "${CKS_TIMER_START:-$(date +%s)}")")
   local end=$(date +%s)
   local elapsed=$((end - start))
   local mins=$((elapsed / 60))

@@ -129,7 +129,7 @@ case "$MODE" in
     header "Q${NUM}: ${NAME} — Grading"
     bash "$SCRIPT" check
     # Auto-stop timer and show elapsed time
-    if [ -f /tmp/.cks-timer-start ]; then
+    if [ -f "${XDG_RUNTIME_DIR:-$HOME/.cache/cks-practice}/timer-start" ]; then
       source "$DIR/lib.sh"
       timer_stop "$TARGET"
     fi
