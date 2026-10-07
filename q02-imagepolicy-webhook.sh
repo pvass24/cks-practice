@@ -117,6 +117,9 @@ PODEOF
   echo ""
   echo -e "  ${BOLD}TASK: Configure ImagePolicyWebhook admission controller${NC}"
   echo ""
+  echo "  The webhook is reachable at:"
+  echo "    https://image-policy-webhook.default"
+  echo ""
   echo "  Two config files + one manifest to edit:"
   echo ""
   echo "    1. /etc/kubernetes/webhook/admission-config.yml"
@@ -128,6 +131,9 @@ PODEOF
   echo ""
   echo "    3. /etc/kubernetes/manifests/kube-apiserver.yaml"
   echo "       → add ImagePolicyWebhook to --enable-admission-plugins"
+  echo ""
+  echo "  Verify: Deploy a test pod and confirm it gets DENIED:"
+  echo "    kubectl run test --image=nginx"
   echo ""
   echo "  When ready: ./run.sh 2 check"
   echo ""
@@ -191,7 +197,25 @@ check)
     fail "kube-apiserver manifest does not contain ImagePolicyWebhook"
   fi
 
-  score_report $SCORE 4
+  # Check 5: Test pod gets denied by the webhook
+  if kubectl get nodes &>/dev/null; then
+    local test_output=$(kubectl run webhook-test --image=nginx --restart=Never 2>&1 || true)
+    kubectl delete pod webhook-test --ignore-not-found &>/dev/null 2>&1 || true
+    if echo "$test_output" | grep -qi "denied\|forbidden\|rejected\|error"; then
+      pass "Test pod was DENIED by ImagePolicyWebhook"
+      SCORE=$((SCORE + 1))
+    else
+      fail "Test pod was NOT denied — webhook may not be enforcing"
+      echo -e "        ${YELLOW}Why: With defaultAllow: false, the webhook should reject pods"
+      echo -e "        when the webhook server denies or is unreachable.${NC}"
+    fi
+  else
+    fail "API server is down — cannot test pod denial"
+    echo -e "        ${YELLOW}Did you set the server URL BEFORE enabling the plugin?${NC}"
+    echo -e "        ${CYAN}Fix order: URL first → defaultAllow false → enable plugin${NC}"
+  fi
+
+  score_report $SCORE 5
   ;;
 
 # ─────────────────────────────────────────
