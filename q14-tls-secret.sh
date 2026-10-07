@@ -78,7 +78,7 @@ do_check() {
   # 1. Namespace exists
   if kubectl get namespace "$NAMESPACE" &>/dev/null; then
     pass "Namespace '$NAMESPACE' exists"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Namespace '$NAMESPACE' not found"
   fi
@@ -86,7 +86,7 @@ do_check() {
   # 2. Secret exists
   if kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" &>/dev/null; then
     pass "Secret '$SECRET_NAME' exists in '$NAMESPACE'"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Secret '$SECRET_NAME' not found in '$NAMESPACE'"
   fi
@@ -96,7 +96,7 @@ do_check() {
   stype=$(kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" -o jsonpath='{.type}' 2>/dev/null || true)
   if [ "$stype" = "kubernetes.io/tls" ]; then
     pass "Secret type is kubernetes.io/tls"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Secret type is '$stype' (expected kubernetes.io/tls)"
   fi
@@ -107,7 +107,7 @@ do_check() {
   ready=${ready:-0}
   if [ "$ready" -gt 0 ] 2>/dev/null; then
     pass "Deployment '$DEPLOYMENT' has $ready Running pod(s)"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Deployment '$DEPLOYMENT' has no Running pods (readyReplicas=$ready)"
     info "Hint: The pod may need a moment after the secret is created. Wait and re-check."

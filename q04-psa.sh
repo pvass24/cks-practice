@@ -62,7 +62,7 @@ do_check() {
   label=$(kubectl get namespace "$NAMESPACE" -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/enforce}' 2>/dev/null || true)
   if [ "$label" = "restricted" ]; then
     pass "Namespace '$NAMESPACE' exists with enforce=restricted"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Namespace '$NAMESPACE' missing or enforce label not 'restricted'"
   fi
@@ -70,7 +70,7 @@ do_check() {
   # 2. Deployment exists
   if kubectl get deployment "$DEPLOYMENT" -n "$NAMESPACE" &>/dev/null; then
     pass "Deployment '$DEPLOYMENT' exists in '$NAMESPACE'"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Deployment '$DEPLOYMENT' not found in '$NAMESPACE'"
   fi
@@ -81,7 +81,7 @@ do_check() {
   ready=${ready:-0}
   if [ "$ready" -gt 0 ] 2>/dev/null; then
     pass "Deployment has $ready Running pod(s)"
-    ((score++))
+    score=$((score + 1))
   else
     fail "No Running pods (readyReplicas=$ready)"
   fi
@@ -95,7 +95,7 @@ do_check() {
     -o jsonpath='{.spec.template.spec.containers[0].securityContext.capabilities.drop}' 2>/dev/null || true)
   if [ "$ape" = "false" ] && echo "$drop" | grep -qi "ALL"; then
     pass "allowPrivilegeEscalation=false and capabilities.drop includes ALL"
-    ((score++))
+    score=$((score + 1))
   else
     fail "allowPrivilegeEscalation=$ape, capabilities.drop=$drop (need false + ALL)"
   fi
@@ -109,7 +109,7 @@ do_check() {
     -o jsonpath='{.spec.template.spec.containers[0].securityContext.seccompProfile.type}' 2>/dev/null || true)
   if [ "$ranr" = "true" ] && [ "$seccomp" = "RuntimeDefault" ]; then
     pass "runAsNonRoot=true and seccompProfile.type=RuntimeDefault"
-    ((score++))
+    score=$((score + 1))
   else
     fail "runAsNonRoot=$ranr, seccompProfile.type=$seccomp (need true + RuntimeDefault)"
   fi

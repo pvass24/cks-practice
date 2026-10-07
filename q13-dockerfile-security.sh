@@ -83,7 +83,7 @@ do_check() {
         fail "Dockerfile USER is '$user_val' (must not be root or 0)"
       else
         pass "Dockerfile USER is '$user_val' (not root)"
-        ((score++))
+        score=$((score + 1))
       fi
     fi
   fi
@@ -96,7 +96,7 @@ do_check() {
     priv=$(grep -E "^\s*privileged:" "$DEPLOY_YAML" | awk '{print $2}' | tr -d '[:space:]')
     if [ "$priv" = "false" ]; then
       pass "deployment.yaml: privileged=false"
-      ((score++))
+      score=$((score + 1))
     else
       fail "deployment.yaml: privileged='$priv' (must be false)"
     fi
@@ -108,7 +108,7 @@ do_check() {
     rofs=$(grep -E "^\s*readOnlyRootFilesystem:" "$DEPLOY_YAML" | awk '{print $2}' | tr -d '[:space:]')
     if [ "$rofs" = "true" ]; then
       pass "deployment.yaml: readOnlyRootFilesystem=true"
-      ((score++))
+      score=$((score + 1))
     else
       fail "deployment.yaml: readOnlyRootFilesystem='$rofs' (must be true)"
     fi
@@ -124,7 +124,7 @@ do_check() {
       fail "deployment.yaml: runAsUser=0 (must not be 0)"
     else
       pass "deployment.yaml: runAsUser=$rau (not 0)"
-      ((score++))
+      score=$((score + 1))
     fi
   fi
 

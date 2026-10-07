@@ -46,7 +46,7 @@ do_check() {
   label_prod=$(kubectl get namespace "$NS_PROD" -o jsonpath='{.metadata.labels.env}' 2>/dev/null || true)
   if [ "$label_prod" = "production" ]; then
     pass "Namespace '$NS_PROD' has label env=production"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Namespace '$NS_PROD' missing or label env != production"
   fi
@@ -56,7 +56,7 @@ do_check() {
   label_db=$(kubectl get namespace "$NS_DB" -o jsonpath='{.metadata.labels.env}' 2>/dev/null || true)
   if [ "$label_db" = "database" ]; then
     pass "Namespace '$NS_DB' has label env=database"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Namespace '$NS_DB' missing or label env != database"
   fi
@@ -64,7 +64,7 @@ do_check() {
   # 3. NetworkPolicy deny-policy exists in production
   if kubectl get networkpolicy deny-policy -n "$NS_PROD" &>/dev/null; then
     pass "NetworkPolicy 'deny-policy' exists in '$NS_PROD'"
-    ((score++))
+    score=$((score + 1))
   else
     fail "NetworkPolicy 'deny-policy' not found in '$NS_PROD'"
   fi
@@ -97,7 +97,7 @@ do_check() {
 
   if [ "$ps_empty" = "true" ] && [ "$has_ingress_type" = "true" ] && [ "$no_ingress_rules" = "true" ]; then
     pass "deny-policy: selects all pods, denies all ingress"
-    ((score++))
+    score=$((score + 1))
   else
     fail "deny-policy: podSelector empty=$ps_empty, Ingress type=$has_ingress_type, no ingress rules=$no_ingress_rules"
   fi
@@ -105,7 +105,7 @@ do_check() {
   # 5. NetworkPolicy allow-from-production exists in database
   if kubectl get networkpolicy allow-from-production -n "$NS_DB" &>/dev/null; then
     pass "NetworkPolicy 'allow-from-production' exists in '$NS_DB'"
-    ((score++))
+    score=$((score + 1))
   else
     fail "NetworkPolicy 'allow-from-production' not found in '$NS_DB'"
   fi
@@ -118,7 +118,7 @@ do_check() {
   ns_match=$(echo "$allow_json" | jq -r '.spec.ingress[0].from[0].namespaceSelector.matchLabels.env // empty' 2>/dev/null)
   if [ "$ns_match" = "production" ]; then
     pass "allow-from-production: allows ingress from namespaceSelector env=production"
-    ((score++))
+    score=$((score + 1))
   else
     fail "allow-from-production: namespaceSelector.matchLabels.env='$ns_match' (expected 'production')"
   fi

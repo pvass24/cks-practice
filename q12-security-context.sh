@@ -66,7 +66,7 @@ do_check() {
   # 1. Deployment exists
   if kubectl get deployment "$DEPLOYMENT" -n "$NAMESPACE" &>/dev/null; then
     pass "Deployment '$DEPLOYMENT' exists in '$NAMESPACE'"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Deployment '$DEPLOYMENT' not found in '$NAMESPACE'"
   fi
@@ -77,7 +77,7 @@ do_check() {
   ready=${ready:-0}
   if [ "$ready" -gt 0 ] 2>/dev/null; then
     pass "Deployment has $ready Running pod(s)"
-    ((score++))
+    score=$((score + 1))
   else
     fail "No Running pods (readyReplicas=$ready)"
   fi
@@ -95,7 +95,7 @@ do_check() {
 
   if [ "$rau" = "32000" ] && [ "$rofs" = "true" ] && [ "$ape" = "false" ]; then
     pass "securityContext: runAsUser=32000, readOnlyRootFilesystem=true, allowPrivilegeEscalation=false"
-    ((score++))
+    score=$((score + 1))
   else
     fail "securityContext: runAsUser=$rau (want 32000), readOnlyRootFilesystem=$rofs (want true), allowPrivilegeEscalation=$ape (want false)"
   fi
@@ -116,7 +116,7 @@ do_check() {
 
   if [ "$has_tmp" = "true" ] && [ "$has_cache" = "true" ]; then
     pass "volumeMounts exist for /tmp and /var/cache/nginx"
-    ((score++))
+    score=$((score + 1))
   else
     fail "volumeMounts: /tmp=$has_tmp, /var/cache/nginx=$has_cache"
   fi

@@ -118,7 +118,7 @@ do_check() {
     # Check 1: Policy file exists and is valid YAML
     if python3 -c "import yaml; yaml.safe_load(open('$POLICY_FILE'))" 2>/dev/null; then
       pass "Audit policy file exists and is valid YAML"
-      ((score++))
+      score=$((score + 1))
     else
       fail "Audit policy file is not valid YAML"
     fi
@@ -165,7 +165,7 @@ for k, v in results.items():
     # Check 2: namespaces at RequestResponse
     if echo "$policy_checks" | grep -q 'namespaces_rr=True'; then
       pass "Policy has namespaces at RequestResponse level"
-      ((score++))
+      score=$((score + 1))
     else
       fail "Policy missing: namespaces at RequestResponse level"
     fi
@@ -173,7 +173,7 @@ for k, v in results.items():
     # Check 3: configmaps in frontend at Request
     if echo "$policy_checks" | grep -q 'cm_frontend_req=True'; then
       pass "Policy has configmaps in 'frontend' namespace at Request level"
-      ((score++))
+      score=$((score + 1))
     else
       fail "Policy missing: configmaps in 'frontend' at Request level"
     fi
@@ -181,7 +181,7 @@ for k, v in results.items():
     # Check 4: configmaps+secrets at Metadata
     if echo "$policy_checks" | grep -q 'cm_secrets_meta=True'; then
       pass "Policy has configmaps+secrets at Metadata level"
-      ((score++))
+      score=$((score + 1))
     else
       fail "Policy missing: configmaps+secrets at Metadata level"
     fi
@@ -189,7 +189,7 @@ for k, v in results.items():
     # Check 5: catch-all Metadata
     if echo "$policy_checks" | grep -q 'catchall_meta=True'; then
       pass "Policy has catch-all Metadata rule"
-      ((score++))
+      score=$((score + 1))
     else
       fail "Policy missing: catch-all Metadata rule"
     fi
@@ -203,7 +203,7 @@ for k, v in results.items():
     # Check 6: --audit-policy-file flag
     if grep -q '\-\-audit-policy-file' "$APISERVER_MANIFEST" 2>/dev/null; then
       pass "API server has --audit-policy-file flag"
-      ((score++))
+      score=$((score + 1))
     else
       fail "API server missing --audit-policy-file flag"
     fi
@@ -211,7 +211,7 @@ for k, v in results.items():
     # Check 7: --audit-log-path flag
     if grep -q '\-\-audit-log-path' "$APISERVER_MANIFEST" 2>/dev/null; then
       pass "API server has --audit-log-path flag"
-      ((score++))
+      score=$((score + 1))
     else
       fail "API server missing --audit-log-path flag"
     fi

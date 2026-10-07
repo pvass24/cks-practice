@@ -94,7 +94,7 @@ do_check() {
   # Check 1: kubelet anonymous.enabled is false
   if grep -A1 'anonymous:' "$KUBELET_CONFIG" 2>/dev/null | grep -q 'enabled: false'; then
     pass "Kubelet anonymous auth is disabled"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Kubelet anonymous auth is NOT disabled (anonymous.enabled should be false)"
   fi
@@ -102,7 +102,7 @@ do_check() {
   # Check 2: kubelet authorization.mode is Webhook
   if grep -q 'mode: Webhook' "$KUBELET_CONFIG" 2>/dev/null; then
     pass "Kubelet authorization mode is Webhook"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Kubelet authorization mode is NOT Webhook"
   fi
@@ -110,7 +110,7 @@ do_check() {
   # Check 3: kubelet authentication.webhook.enabled is true
   if grep -A1 'webhook:' "$KUBELET_CONFIG" 2>/dev/null | grep -q 'enabled: true'; then
     pass "Kubelet webhook authentication is enabled"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Kubelet webhook authentication is NOT enabled"
   fi
@@ -118,7 +118,7 @@ do_check() {
   # Check 4: etcd has --client-cert-auth=true
   if grep -q '\-\-client-cert-auth=true' "$ETCD_MANIFEST" 2>/dev/null; then
     pass "ETCD client-cert-auth is true"
-    ((score++))
+    score=$((score + 1))
   else
     fail "ETCD client-cert-auth is NOT true"
   fi

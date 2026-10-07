@@ -81,7 +81,7 @@ do_check() {
   sa_automount=$(kubectl get sa "$SA_NAME" -n "$NAMESPACE" -o jsonpath='{.automountServiceAccountToken}' 2>/dev/null)
   if [ "$sa_automount" = "false" ]; then
     pass "ServiceAccount $SA_NAME has automountServiceAccountToken: false"
-    ((score++))
+    score=$((score + 1))
   else
     fail "ServiceAccount $SA_NAME does not have automountServiceAccountToken: false"
   fi
@@ -105,7 +105,7 @@ print(d.get('spec',{}).get('template',{}).get('spec',{}).get('automountServiceAc
 " 2>/dev/null)
   if [ "$deploy_automount" = "False" ] || [ "$deploy_automount" = "false" ]; then
     pass "Deployment pod spec has automountServiceAccountToken: false"
-    ((score++))
+    score=$((score + 1))
   else
     fail "Deployment pod spec does not have automountServiceAccountToken: false (got: $deploy_automount)"
   fi
@@ -127,7 +127,7 @@ print('no')
 " 2>/dev/null)
   if [ "$has_projected_sa" = "yes" ]; then
     pass "Projected volume with serviceAccountToken source exists"
-    ((score++))
+    score=$((score + 1))
   else
     fail "No projected volume with serviceAccountToken source found"
   fi
@@ -150,7 +150,7 @@ print('no')
 " 2>/dev/null)
   if [ "$has_expiration" = "yes" ]; then
     pass "serviceAccountToken has expirationSeconds set"
-    ((score++))
+    score=$((score + 1))
   else
     fail "serviceAccountToken does not have expirationSeconds set"
   fi
@@ -171,7 +171,7 @@ print('no')
 " 2>/dev/null)
   if [ "$has_readonly_mount" = "yes" ]; then
     pass "Volume mount is readOnly"
-    ((score++))
+    score=$((score + 1))
   else
     fail "No readOnly volume mount found"
   fi

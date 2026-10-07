@@ -62,7 +62,7 @@ do_check() {
     # Check 1: kube-apiserver has --anonymous-auth=false
     if grep -q '\-\-anonymous-auth=false' "$APISERVER_MANIFEST" 2>/dev/null; then
       pass "API server has --anonymous-auth=false"
-      ((score++))
+      score=$((score + 1))
     else
       fail "API server missing --anonymous-auth=false"
     fi
@@ -70,7 +70,7 @@ do_check() {
     # Check 2: kube-apiserver has --authorization-mode=Node,RBAC
     if grep -q '\-\-authorization-mode=Node,RBAC' "$APISERVER_MANIFEST" 2>/dev/null; then
       pass "API server has --authorization-mode=Node,RBAC"
-      ((score++))
+      score=$((score + 1))
     else
       fail "API server missing --authorization-mode=Node,RBAC"
     fi
@@ -78,7 +78,7 @@ do_check() {
     # Check 3: kube-apiserver has NodeRestriction admission plugin
     if grep '\-\-enable-admission-plugins' "$APISERVER_MANIFEST" 2>/dev/null | grep -q 'NodeRestriction'; then
       pass "API server has NodeRestriction admission plugin"
-      ((score++))
+      score=$((score + 1))
     else
       fail "API server missing NodeRestriction in --enable-admission-plugins"
     fi
@@ -94,7 +94,7 @@ do_check() {
     fail "ClusterRoleBinding system:anonymous still exists — delete it!"
   else
     pass "ClusterRoleBinding system:anonymous does not exist"
-    ((score++))
+    score=$((score + 1))
   fi
 
   score_report "$score" "$total"

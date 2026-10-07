@@ -78,13 +78,13 @@ do_check() {
   if id developer &>/dev/null; then
     if ! groups developer 2>/dev/null | grep -qw docker; then
       pass "User 'developer' is NOT in the docker group"
-      ((score++))
+      score=$((score + 1))
     else
       fail "User 'developer' is still in the docker group"
     fi
   else
     pass "User 'developer' does not exist (also acceptable)"
-    ((score++))
+    score=$((score + 1))
   fi
 
   # Check 2: docker.socket SocketGroup is root (not docker)
@@ -93,7 +93,7 @@ do_check() {
     socket_group=$(grep 'SocketGroup' "$DOCKER_SOCKET" 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')
     if [ "$socket_group" = "root" ] || [ -z "$socket_group" ]; then
       pass "docker.socket SocketGroup is root"
-      ((score++))
+      score=$((score + 1))
     else
       fail "docker.socket SocketGroup is '$socket_group' (should be root)"
     fi
@@ -103,7 +103,7 @@ do_check() {
       fail "docker.socket SocketGroup is docker (should be root)"
     else
       pass "docker.socket SocketGroup is root"
-      ((score++))
+      score=$((score + 1))
     fi
   fi
 
@@ -112,7 +112,7 @@ do_check() {
     fail "docker.service still has tcp://0.0.0.0:2375 listener"
   else
     pass "docker.service does NOT have tcp://0.0.0.0:2375"
-    ((score++))
+    score=$((score + 1))
   fi
 
   # Check 4: docker is running without TCP (daemon-reload was run)
@@ -120,7 +120,7 @@ do_check() {
     # Verify docker is actually not listening on 2375
     if ! ss -tlnp 2>/dev/null | grep -q ':2375'; then
       pass "Docker is running and NOT listening on TCP 2375"
-      ((score++))
+      score=$((score + 1))
     else
       fail "Docker is still listening on TCP 2375 — did you daemon-reload + restart?"
     fi
