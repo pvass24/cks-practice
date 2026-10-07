@@ -20,7 +20,9 @@ setup)
   sudo mkdir -p /etc/kubernetes/webhook
 
   # admission-config.yml — top-level AdmissionConfiguration
-  info "Writing admission-config.yml..."
+  # admission-config.yml — AdmissionConfiguration
+  # User must: change defaultAllow to false, change allowTTL to 100
+  info "Writing admission-config.yml (defaultAllow: true, allowTTL: 50 — fix both)..."
   sudo tee /etc/kubernetes/webhook/admission-config.yml > /dev/null <<'ADMEOF'
 apiVersion: apiserver.config.k8s.io/v1
 kind: AdmissionConfiguration
@@ -35,33 +37,8 @@ plugins:
         defaultAllow: true
 ADMEOF
 
-  # image-policy-config.yml — ImagePolicy config
-  # NOTE: defaultAllow is true — the user must change it to false
-  info "Writing image-policy-config.yml (defaultAllow: true — change to false)..."
-  sudo tee /etc/kubernetes/webhook/image-policy-config.yml > /dev/null <<'IPEOF'
-apiVersion: v1
-kind: Config
-clusters:
-  - name: image-checker
-    cluster:
-      certificate-authority: /etc/kubernetes/webhook/webhook-ca.pem
-      server: ""
-contexts:
-  - name: image-checker
-    context:
-      cluster: image-checker
-      user: api-server
-current-context: image-checker
-preferences: {}
-users:
-  - name: api-server
-    user:
-      client-certificate: /etc/kubernetes/webhook/apiserver-client.pem
-      client-key: /etc/kubernetes/webhook/apiserver-client-key.pem
-IPEOF
-
   # kube-config.yml — kubeconfig pointing to the webhook server
-  # NOTE: server is empty — user must fill in the URL
+  # User must: fill in the server URL
   info "Writing kube-config.yml (server: empty — fill in webhook URL)..."
   sudo tee /etc/kubernetes/webhook/kube-config.yml > /dev/null <<'KCEOF'
 apiVersion: v1
@@ -69,7 +46,7 @@ kind: Config
 clusters:
   - name: image-checker
     cluster:
-      certificate-authority: /etc/kubernetes/webhook/webhook-ca.pem
+      certificate-authority: /etc/kubernetes/pki/ca.crt
       server: ""
 contexts:
   - name: image-checker
@@ -81,8 +58,8 @@ preferences: {}
 users:
   - name: api-server
     user:
-      client-certificate: /etc/kubernetes/webhook/apiserver-client.pem
-      client-key: /etc/kubernetes/webhook/apiserver-client-key.pem
+      client-certificate: /etc/kubernetes/pki/apiserver.crt
+      client-key: /etc/kubernetes/pki/apiserver.key
 KCEOF
 
   # Mount webhook volume in kube-apiserver static pod
@@ -140,13 +117,14 @@ PODEOF
   echo ""
   echo -e "  ${BOLD}TASK: Configure ImagePolicyWebhook admission controller${NC}"
   echo ""
-  echo "  Files to edit:"
+  echo "  Two config files + one manifest to edit:"
+  echo ""
   echo "    1. /etc/kubernetes/webhook/admission-config.yml"
   echo "       → set defaultAllow to false (fail-closed)"
   echo "       → set allowTTL to 100"
   echo ""
   echo "    2. /etc/kubernetes/webhook/kube-config.yml"
-  echo "       → set server URL to the webhook endpoint"
+  echo "       → set the webhook server URL"
   echo ""
   echo "    3. /etc/kubernetes/manifests/kube-apiserver.yaml"
   echo "       → add ImagePolicyWebhook to --enable-admission-plugins"
@@ -170,8 +148,7 @@ check)
   SCORE=0
 
   # Check 1: defaultAllow is false in admission-config.yml
-  if sudo grep -q 'defaultAllow: false' /etc/kubernetes/webhook/admission-config.yml 2>/dev/null || \
-     sudo grep -q 'defaultAllow: false' /etc/kubernetes/webhook/image-policy-config.yml 2>/dev/null; then
+  if sudo grep -q 'defaultAllow: false' /etc/kubernetes/webhook/admission-config.yml 2>/dev/null; then
     pass "defaultAllow is set to false"
     SCORE=$((SCORE + 1))
   else
