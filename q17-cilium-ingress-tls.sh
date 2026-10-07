@@ -99,15 +99,19 @@ EOF
   kubectl delete ingress web-ingress -n "$NAMESPACE" --ignore-not-found >/dev/null 2>&1
 
   echo ""
-  info "Setup complete. Create an Ingress with Cilium:"
-  info ""
-  info "  1. Accept traffic for hostname: $HOSTNAME"
-  info "  2. Forward all paths to web-service on port 80"
-  info "  3. Terminate TLS using secret 'web-tls'"
-  info "  4. Force HTTP → HTTPS redirect"
-  info "  5. Use Cilium as the ingress controller"
-  info ""
-  info "When ready: ./run.sh 17 check"
+  info "Setup complete."
+  echo ""
+  echo -e "  ${BOLD}TASK: Create an Ingress in the '${NAMESPACE}' namespace${NC}"
+  echo ""
+  echo "  Name:       web-ingress"
+  echo "  Namespace:  ${NAMESPACE}"
+  echo "  Hostname:   ${HOSTNAME}"
+  echo "  Backend:    web-service on port 80 (all paths)"
+  echo "  TLS:        terminate using secret 'web-tls'"
+  echo "  Redirect:   force HTTP → HTTPS"
+  echo "  Controller: Cilium"
+  echo ""
+  echo "  When ready: ./run.sh 17 check"
 }
 
 do_check() {
