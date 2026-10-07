@@ -108,7 +108,7 @@ do_check() {
   fi
 
   # Check 3: kubelet authentication.webhook.enabled is true
-  if grep -A1 'webhook:' "$KUBELET_CONFIG" 2>/dev/null | grep -q 'enabled: true'; then
+  if sed -n '/^authentication:/,/^[a-z]/p' "$KUBELET_CONFIG" 2>/dev/null | grep -A2 'webhook:' | grep -q 'enabled: true'; then
     pass "Kubelet webhook authentication is enabled"
     score=$((score + 1))
   else
