@@ -84,7 +84,7 @@ check)
   # Check 1: Worker kubelet version matches control plane
   if [ "$CP_VERSION" = "$WORKER_VERSION" ]; then
     pass "Worker kubelet version matches control plane ($WORKER_VERSION)"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "Worker kubelet version ($WORKER_VERSION) does not match control plane ($CP_VERSION)"
   fi
@@ -94,7 +94,7 @@ check)
   WORKER_SCHED=$(kubectl get node "$WORKER" -o jsonpath='{.spec.unschedulable}' 2>/dev/null)
   if [ "$WORKER_STATUS" = "True" ] && [ "$WORKER_SCHED" != "true" ]; then
     pass "Worker node $WORKER is Ready and schedulable"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   elif [ "$WORKER_STATUS" = "True" ] && [ "$WORKER_SCHED" = "true" ]; then
     fail "Worker node is Ready but still cordoned (run: kubectl uncordon $WORKER)"
   else
@@ -112,7 +112,7 @@ check)
     if [ "$KUBEADM_VER" != "unknown" ] && [ "$KUBECTL_VER" != "unknown" ] && [ "$KUBELET_VER_SSH" != "unknown" ]; then
       if [ "$KUBEADM_VER" = "$KUBELET_VER_SSH" ] || [ "$KUBEADM_VER" = "$CP_VERSION" ]; then
         pass "Worker tools consistent: kubeadm=$KUBEADM_VER kubelet=$KUBELET_VER_SSH"
-        ((SCORE++))
+        SCORE=$((SCORE + 1))
       else
         fail "Version mismatch on worker: kubeadm=$KUBEADM_VER kubelet=$KUBELET_VER_SSH kubectl=$KUBECTL_VER"
       fi
@@ -120,7 +120,7 @@ check)
       info "Cannot SSH to worker to verify tool versions — scoring based on kubelet version only"
       if [ "$CP_VERSION" = "$WORKER_VERSION" ]; then
         pass "Kubelet version matches (SSH unavailable for full tool check)"
-        ((SCORE++))
+        SCORE=$((SCORE + 1))
       else
         fail "Kubelet version mismatch (SSH unavailable for full tool check)"
       fi
@@ -129,7 +129,7 @@ check)
     info "SSH not available — checking kubelet version only"
     if [ "$CP_VERSION" = "$WORKER_VERSION" ]; then
       pass "Kubelet version matches control plane (SSH unavailable for full check)"
-      ((SCORE++))
+      SCORE=$((SCORE + 1))
     else
       fail "Kubelet version mismatch"
     fi

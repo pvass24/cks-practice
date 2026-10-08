@@ -111,7 +111,7 @@ check)
   # Check 1: Ingress web-ingress exists in production
   if kubectl get ingress web-ingress -n production &>/dev/null; then
     pass "Ingress 'web-ingress' exists in namespace 'production'"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "Ingress 'web-ingress' not found in namespace 'production'"
   fi
@@ -120,7 +120,7 @@ check)
   TLS_SECRET=$(kubectl get ingress web-ingress -n production -o jsonpath='{.spec.tls[0].secretName}' 2>/dev/null)
   if [ "$TLS_SECRET" = "web-ingress-tls" ]; then
     pass "Ingress has TLS configured with secretName 'web-ingress-tls'"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "Ingress TLS secretName is '$TLS_SECRET' (expected 'web-ingress-tls')"
   fi
@@ -130,7 +130,7 @@ check)
   TLS_HOSTS=$(kubectl get ingress web-ingress -n production -o jsonpath='{.spec.tls[0].hosts[*]}' 2>/dev/null)
   if echo "$HOSTS" | grep -q 'web.k8s.local'; then
     pass "Ingress has host 'web.k8s.local'"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "Ingress host is '$HOSTS' (expected 'web.k8s.local')"
   fi
@@ -139,7 +139,7 @@ check)
   ANNOTATIONS=$(kubectl get ingress web-ingress -n production -o json 2>/dev/null | grep -E '(ssl-redirect|force-ssl-redirect)' || true)
   if [ -n "$ANNOTATIONS" ]; then
     pass "Ingress has SSL redirect annotation"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "Ingress missing ssl-redirect or force-ssl-redirect annotation"
   fi

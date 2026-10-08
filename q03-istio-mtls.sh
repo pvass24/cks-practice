@@ -138,7 +138,7 @@ check)
   INJECTION_LABEL=$(kubectl get ns istio-example -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null)
   if [ "$INJECTION_LABEL" = "enabled" ]; then
     pass "Namespace istio-example has istio-injection=enabled"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "Namespace istio-example missing istio-injection=enabled label (got: '$INJECTION_LABEL')"
   fi
@@ -158,7 +158,7 @@ check)
 
   if [ "$TOTAL_PODS" -gt 0 ] && [ "$PODS_WITH_SIDECAR" -eq "$TOTAL_PODS" ]; then
     pass "All pods in istio-example have istio-proxy sidecar ($PODS_WITH_SIDECAR/$TOTAL_PODS)"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "Not all pods have sidecar containers ($PODS_WITH_SIDECAR/$TOTAL_PODS with 2+ containers)"
   fi
@@ -167,7 +167,7 @@ check)
   PA_MODE=$(kubectl get peerauthentication default -n istio-example -o jsonpath='{.spec.mtls.mode}' 2>/dev/null)
   if [ "$PA_MODE" = "STRICT" ]; then
     pass "PeerAuthentication 'default' exists with mode STRICT"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "PeerAuthentication 'default' not found or mode is not STRICT (got: '$PA_MODE')"
   fi

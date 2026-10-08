@@ -132,7 +132,7 @@ check)
   # Check 1: Falco rules file has a rule for /dev/mem
   if sudo grep -q '/dev/mem' /etc/falco/falco_rules.local.yaml 2>/dev/null; then
     pass "Falco local rules contain a rule for /dev/mem"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "No /dev/mem rule found in /etc/falco/falco_rules.local.yaml"
   fi
@@ -150,7 +150,7 @@ check)
 
   if [ "$SCALED_DOWN" -eq 1 ]; then
     pass "One deployment scaled to 0: $OFFENDER"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   elif [ "$SCALED_DOWN" -eq 0 ]; then
     fail "No deployments scaled to 0 — identify and scale down the offending deployment"
   else
@@ -168,7 +168,7 @@ check)
 
   if [ "$RUNNING" -ge 2 ]; then
     pass "Other deployments still have replicas > 0 ($RUNNING running)"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "Expected at least 2 deployments still running (found $RUNNING)"
   fi

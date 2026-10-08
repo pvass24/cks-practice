@@ -101,7 +101,7 @@ check)
   # Check 1: ~/report.spdx exists
   if [ -f ~/report.spdx ]; then
     pass "~/report.spdx exists ($(wc -l < ~/report.spdx) lines)"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "~/report.spdx not found — generate it with bom"
   fi
@@ -110,7 +110,7 @@ check)
   CONTAINER_COUNT=$(kubectl get deployment sbom -n sbom -o jsonpath='{.spec.template.spec.containers[*].name}' 2>/dev/null | wc -w)
   if [ "$CONTAINER_COUNT" -eq 2 ]; then
     pass "Deployment sbom has exactly 2 containers"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "Deployment sbom has $CONTAINER_COUNT containers (expected 2)"
   fi
@@ -119,7 +119,7 @@ check)
   CONTAINERS=$(kubectl get deployment sbom -n sbom -o jsonpath='{.spec.template.spec.containers[*].name}' 2>/dev/null)
   if ! echo "$CONTAINERS" | grep -q 'crypto-util'; then
     pass "Vulnerable container 'crypto-util' (libcrypto3 3.1.4-r5) was removed"
-    ((SCORE++))
+    SCORE=$((SCORE + 1))
   else
     fail "Container 'crypto-util' still present — this is the vulnerable one to remove"
   fi
