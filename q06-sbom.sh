@@ -64,7 +64,7 @@ spec:
           image: busybox:1.36
           command: ["sh", "-c", "while true; do echo heartbeat; sleep 60; done"]
         - name: crypto-util
-          image: alpine:3.18.0
+          image: alpine:3.18.4
           command: ["sh", "-c", "sleep infinity"]
 EOF
 
@@ -142,12 +142,12 @@ solution)
   echo "   kubectl -n sbom exec \$POD -c logger -- cat /etc/os-release 2>/dev/null  # busybox, no apk"
   echo "   kubectl -n sbom exec \$POD -c crypto-util -- apk list 2>/dev/null | grep libcrypto"
   echo ""
-  echo "   # The crypto-util container (alpine:3.18.0) has libcrypto3 3.1.4-r5"
+  echo "   # The crypto-util container (alpine:3.18.4) has libcrypto3 3.1.4-r5"
   echo ""
   echo -e "${BOLD}2. Generate an SBOM with bom:${NC}"
-  echo "   bom generate -n sbom -i alpine:3.18.0 -o ~/report.spdx"
+  echo "   bom generate -n sbom -i alpine:3.18.4 -o ~/report.spdx"
   echo "   # Or for the whole deployment:"
-  echo "   bom generate -n sbom --image alpine:3.18.0 --output ~/report.spdx"
+  echo "   bom generate -n sbom --image alpine:3.18.4 --output ~/report.spdx"
   echo ""
   echo -e "${BOLD}3. Remove the vulnerable container from the deployment:${NC}"
   echo "   kubectl -n sbom edit deployment sbom"
