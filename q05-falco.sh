@@ -16,17 +16,43 @@ setup)
     exit 0
   fi
 
-  # Install Falco if not present
+  # Install Falco on controlplane
   if ! command -v falco &>/dev/null && ! systemctl is-active falco &>/dev/null 2>&1; then
-    info "Installing Falco..."
+    info "Installing Falco on controlplane..."
     curl -fsSL https://falco.org/repo/falcosecurity-packages.asc | sudo gpg --dearmor -o /usr/share/keyrings/falco-archive-keyring.gpg
     echo "deb [signed-by=/usr/share/keyrings/falco-archive-keyring.gpg] https://download.falco.org/packages/deb stable main" | sudo tee /etc/apt/sources.list.d/falcosecurity.list
     sudo apt-get update -y
     sudo apt-get install -y falco
-    info "Falco installed."
+    info "Falco installed on controlplane."
   else
-    info "Falco already installed."
+    info "Falco already installed on controlplane."
   fi
+
+  # Install Falco on worker node(s) too — pods may schedule there
+  WORKER_NODES=$(kubectl get nodes --no-headers -o custom-columns=NAME:.metadata.name | grep -v controlplane)
+  for NODE in $WORKER_NODES; do
+    if ssh "$NODE" "command -v falco" &>/dev/null 2>&1; then
+      info "Falco already installed on $NODE."
+    else
+      info "Installing Falco on $NODE..."
+      ssh "$NODE" bash <<'REMOTEEOF'
+curl -fsSL https://falco.org/repo/falcosecurity-packages.asc | sudo gpg --dearmor -o /usr/share/keyrings/falco-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/falco-archive-keyring.gpg] https://download.falco.org/packages/deb stable main" | sudo tee /etc/apt/sources.list.d/falcosecurity.list
+sudo apt-get update -y
+sudo apt-get install -y falco
+REMOTEEOF
+      info "Falco installed on $NODE."
+    fi
+  done
+
+  # Copy local rules to worker nodes
+  info "Syncing Falco rules to worker nodes..."
+  sudo tee /etc/falco/falco_rules.local.yaml > /dev/null <<'CLEAREOF'
+# Add your custom rules here
+CLEAREOF
+  for NODE in $WORKER_NODES; do
+    scp /etc/falco/falco_rules.local.yaml "$NODE":/etc/falco/falco_rules.local.yaml 2>/dev/null || true
+  done
 
   # Create namespace
   info "Creating namespace neuron..."
@@ -107,11 +133,20 @@ CLEAREOF
   echo ""
   pass "Setup complete."
   echo ""
-  info "TASK: Detect the pod reading /dev/mem using Falco and scale it down."
-  info "  1. Write a Falco rule in /etc/falco/falco_rules.local.yaml to detect reads of /dev/mem"
-  info "  2. Run Falco to identify which deployment's pod is reading /dev/mem"
-  info "  3. Scale the offending deployment to 0 replicas"
-  info "  Namespace: neuron | Deployments: facebook, instagram, tinder"
+  echo -e "  ${BOLD}TASK: Detect the pod reading /dev/mem using Falco and scale it down${NC}"
+  echo ""
+  echo "  Namespace:    neuron"
+  echo "  Deployments:  facebook, instagram, tinder"
+  echo ""
+  echo "  Steps:"
+  echo "    1. Write a Falco rule in /etc/falco/falco_rules.local.yaml"
+  echo "       to detect reads of /dev/mem"
+  echo "    2. Check which NODE the pods run on: kubectl get pods -n neuron -o wide"
+  echo "    3. SSH to that node and run Falco there (Falco is node-local!)"
+  echo "    4. Copy your rules first: scp /etc/falco/falco_rules.local.yaml <node>:/etc/falco/"
+  echo "    5. Identify the offending pod and scale its deployment to 0"
+  echo ""
+  echo "  Falco is installed on ALL nodes."
   echo ""
   timer_start
   ;;
