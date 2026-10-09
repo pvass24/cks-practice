@@ -121,6 +121,21 @@ with open('$manifest','w') as f:
   rm -rf ~/monitor 2>/dev/null || true
 }
 
+# Force-recreate a namespace: delete, wait for termination, create fresh
+fresh_namespace() {
+  local ns="$1"
+  if kubectl get namespace "$ns" &>/dev/null 2>&1; then
+    kubectl delete namespace "$ns" --force --grace-period=0 --ignore-not-found &>/dev/null 2>&1 || true
+    for i in $(seq 1 15); do
+      if ! kubectl get namespace "$ns" &>/dev/null 2>&1; then
+        break
+      fi
+      sleep 1
+    done
+  fi
+  kubectl create namespace "$ns"
+}
+
 pass() { echo -e "  ${GREEN}[PASS]${NC} $1"; }
 fail() { echo -e "  ${RED}[FAIL]${NC} $1"; }
 skip() { echo -e "  ${YELLOW}[SKIP]${NC} $1"; }
