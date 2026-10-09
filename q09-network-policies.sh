@@ -8,19 +8,13 @@ NS_DB="database"
 do_setup() {
   header "Q09 Setup — NetworkPolicy"
 
-  info "Creating namespace '$NS_PROD' with label env=production..."
-  kubectl create namespace "$NS_PROD" --dry-run=client -o yaml | \
-    kubectl apply -f - 2>/dev/null
-  kubectl label namespace "$NS_PROD" env=production --overwrite
+  info "Creating fresh namespace '$NS_PROD'..."
+  fresh_namespace "$NS_PROD"
+  kubectl label namespace "$NS_PROD" env=production
 
-  info "Creating namespace '$NS_DB' with label env=database..."
-  kubectl create namespace "$NS_DB" --dry-run=client -o yaml | \
-    kubectl apply -f - 2>/dev/null
-  kubectl label namespace "$NS_DB" env=database --overwrite
-
-  info "Cleaning any existing NetworkPolicies..."
-  kubectl delete networkpolicy --all -n "$NS_PROD" 2>/dev/null || true
-  kubectl delete networkpolicy --all -n "$NS_DB" 2>/dev/null || true
+  info "Creating fresh namespace '$NS_DB'..."
+  fresh_namespace "$NS_DB"
+  kubectl label namespace "$NS_DB" env=database
 
   info "Setup complete."
   echo ""

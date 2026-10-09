@@ -10,8 +10,7 @@ do_setup() {
   header "Q04 Setup — Pod Security Admission"
 
   info "Creating namespace '$NAMESPACE' with PSA enforce=restricted..."
-  kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | \
-    kubectl apply -f - 2>/dev/null
+  fresh_namespace "$NAMESPACE"
   kubectl label namespace "$NAMESPACE" \
     pod-security.kubernetes.io/enforce=restricted \
     pod-security.kubernetes.io/enforce-version=latest \

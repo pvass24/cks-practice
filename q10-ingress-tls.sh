@@ -24,7 +24,7 @@ setup)
 
   # Create production namespace
   info "Creating namespace production..."
-  kubectl create ns production --dry-run=client -o yaml | kubectl apply -f -
+  fresh_namespace "production"
 
   # Deploy web app and service
   info "Deploying web application..."

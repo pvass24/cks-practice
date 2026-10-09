@@ -35,7 +35,7 @@ setup)
 
   # Create namespace
   info "Creating namespace sbom..."
-  kubectl create ns sbom --dry-run=client -o yaml | kubectl apply -f -
+  fresh_namespace "sbom"
 
   # Deploy with 3 containers using different image tags
   # One container uses an image with libcrypto3 3.1.4-r5 (vulnerable)

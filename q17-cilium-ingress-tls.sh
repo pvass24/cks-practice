@@ -35,7 +35,7 @@ do_setup() {
   fi
 
   # Create namespace
-  kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  fresh_namespace "$NAMESPACE"
   info "Namespace '$NAMESPACE' ready"
 
   # Deploy web app

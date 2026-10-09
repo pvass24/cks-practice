@@ -12,7 +12,7 @@ do_setup() {
   info "Creating namespace, ServiceAccount, and insecure Deployment..."
 
   # Create namespace
-  kubectl create namespace "$NAMESPACE" 2>/dev/null || info "Namespace $NAMESPACE already exists"
+  fresh_namespace "$NAMESPACE"
 
   # Create ServiceAccount with default automount (true)
   kubectl apply -f - <<EOF

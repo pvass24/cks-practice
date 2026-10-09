@@ -56,7 +56,7 @@ CLEAREOF
 
   # Create namespace
   info "Creating namespace neuron..."
-  kubectl create ns neuron --dry-run=client -o yaml | kubectl apply -f -
+  fresh_namespace "neuron"
 
   # Deploy 3 deployments — one will read /dev/mem (the offending one)
   info "Deploying facebook, instagram, and tinder workloads..."

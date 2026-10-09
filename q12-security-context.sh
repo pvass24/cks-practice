@@ -9,8 +9,7 @@ do_setup() {
   header "Q12 Setup — Security Context Hardening"
 
   info "Creating namespace '$NAMESPACE'..."
-  kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | \
-    kubectl apply -f - 2>/dev/null
+  fresh_namespace "$NAMESPACE"
 
   info "Deploying '$DEPLOYMENT' with NO securityContext..."
   cat <<'EOF' | kubectl apply -f -

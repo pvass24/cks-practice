@@ -11,8 +11,7 @@ do_setup() {
   header "Q14 Setup — TLS Secret"
 
   info "Creating namespace '$NAMESPACE'..."
-  kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | \
-    kubectl apply -f - 2>/dev/null
+  fresh_namespace "$NAMESPACE"
 
   info "Generating TLS cert and key at $TLS_DIR/..."
   mkdir -p "$TLS_DIR"
