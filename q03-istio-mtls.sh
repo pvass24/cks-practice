@@ -148,10 +148,10 @@ check)
   TOTAL_PODS=0
   while IFS= read -r line; do
     if [ -n "$line" ]; then
-      ((TOTAL_PODS++))
+      TOTAL_PODS=$((TOTAL_PODS + 1))
       CONTAINER_COUNT=$(echo "$line" | awk -F/ '{print $2}')
       if [ "$CONTAINER_COUNT" -ge 2 ] 2>/dev/null; then
-        ((PODS_WITH_SIDECAR++))
+        PODS_WITH_SIDECAR=$((PODS_WITH_SIDECAR + 1))
       fi
     fi
   done < <(kubectl get pods -n istio-example --no-headers 2>/dev/null | awk '{print $2}')
