@@ -14,10 +14,27 @@ do_setup() {
 
   info "Weakening API server and creating anonymous ClusterRoleBinding..."
 
-  # Remove --anonymous-auth flag if present (defaults to true when absent)
   if [ -f "$APISERVER_MANIFEST" ]; then
-    cp "$APISERVER_MANIFEST" "${APISERVER_MANIFEST}.bak"
+    cp "$APISERVER_MANIFEST" /root/kube-apiserver.yaml.bak
+    info "Backed up manifest to /root/kube-apiserver.yaml.bak"
+
+    # 1. Remove --anonymous-auth flag (defaults to true when absent)
     sed -i '/--anonymous-auth/d' "$APISERVER_MANIFEST"
+
+    # 2. Change authorization-mode to include AlwaysAllow
+    sed -i 's/--authorization-mode=Node,RBAC/--authorization-mode=AlwaysAllow/' "$APISERVER_MANIFEST"
+
+    # 3. Remove NodeRestriction from admission plugins
+    sed -i 's/--enable-admission-plugins=NodeRestriction/--enable-admission-plugins=/' "$APISERVER_MANIFEST"
+
+    info "Waiting for API server to restart with weakened config..."
+    sleep 15
+    for i in $(seq 1 20); do
+      if kubectl get nodes &>/dev/null 2>&1; then
+        break
+      fi
+      sleep 3
+    done
   else
     fail "API server manifest not found at $APISERVER_MANIFEST"
     exit 1
