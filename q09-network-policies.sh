@@ -8,25 +8,31 @@ NS_DB="database"
 do_setup() {
   header "Q09 Setup — NetworkPolicy"
 
-  info "Creating fresh namespace '$NS_PROD'..."
-  fresh_namespace "$NS_PROD"
-  kubectl label namespace "$NS_PROD" env=production
+  # Clean up any existing namespaces from previous runs
+  for ns in "$NS_PROD" "$NS_DB"; do
+    kubectl delete namespace "$ns" --force --grace-period=0 --ignore-not-found &>/dev/null 2>&1 || true
+  done
+  for i in $(seq 1 15); do
+    if ! kubectl get ns "$NS_PROD" &>/dev/null 2>&1 && ! kubectl get ns "$NS_DB" &>/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
 
-  info "Creating fresh namespace '$NS_DB'..."
-  fresh_namespace "$NS_DB"
-  kubectl label namespace "$NS_DB" env=database
-
-  info "Setup complete."
+  info "Environment cleaned. Nothing pre-created."
   echo ""
-  echo -e "  ${BOLD}TASK: Create two NetworkPolicies to control ingress traffic${NC}"
+  echo -e "  ${BOLD}TASK: Secure inter-namespace communication with NetworkPolicies${NC}"
   echo ""
-  echo "  1. Name:       deny-policy"
-  echo "     Namespace:  production"
-  echo "     Behavior:   Select ALL pods, deny ALL ingress traffic"
+  echo "  You must create everything from scratch:"
   echo ""
-  echo "  2. Name:       allow-from-production"
-  echo "     Namespace:  database"
-  echo "     Behavior:   Allow ingress from namespaces with label env=production"
+  echo "  1. Create namespace 'production' with label env=production"
+  echo "  2. Create namespace 'database' with label env=database"
+  echo "  3. Deploy a pod 'web-app' (nginx) in production with label app=web"
+  echo "  4. Deploy a pod 'db-app' (nginx) in database with label app=db"
+  echo "  5. Create NetworkPolicy 'deny-policy' in production"
+  echo "     → block ALL ingress to all pods"
+  echo "  6. Create NetworkPolicy 'allow-from-production' in database"
+  echo "     → allow ingress only from namespace with label env=production"
   echo ""
   echo "  When ready: ./run.sh 9 check"
 }
