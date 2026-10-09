@@ -96,7 +96,16 @@ with open('$manifest','w') as f:
   # Clean up namespaces from previous questions (keep system namespaces)
   if kubectl get nodes &>/dev/null 2>&1; then
     for ns in production database restricted sec-ns sbom neuron serviceaccount token-ns bright-banyan security-test static-test trivy-scan istio-example; do
-      kubectl delete namespace "$ns" --ignore-not-found --wait=false &>/dev/null 2>&1 || true
+      if kubectl get namespace "$ns" &>/dev/null 2>&1; then
+        kubectl delete namespace "$ns" --ignore-not-found &>/dev/null 2>&1 || true
+      fi
+    done
+    # Wait for any Terminating namespaces to finish
+    for i in $(seq 1 15); do
+      if ! kubectl get ns 2>/dev/null | grep -q Terminating; then
+        break
+      fi
+      sleep 2
     done
   fi
 
