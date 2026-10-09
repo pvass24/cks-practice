@@ -120,18 +120,24 @@ spec:
           image: httpd:2.4
 EOF
 
-  kubectl -n neuron rollout status deployment/facebook --timeout=60s 2>/dev/null || true
-  kubectl -n neuron rollout status deployment/instagram --timeout=60s 2>/dev/null || true
-  kubectl -n neuron rollout status deployment/tinder --timeout=60s 2>/dev/null || true
+  info "Waiting for deployments to be ready..."
+  kubectl -n neuron wait --for=condition=available deployment/facebook --timeout=90s 2>/dev/null || true
+  kubectl -n neuron wait --for=condition=available deployment/instagram --timeout=90s 2>/dev/null || true
+  kubectl -n neuron wait --for=condition=available deployment/tinder --timeout=90s 2>/dev/null || true
 
-  # Clear local rules file
-  info "Clearing Falco local rules..."
+  # Clear local rules file on all nodes
+  info "Clearing Falco local rules on all nodes..."
   sudo tee /etc/falco/falco_rules.local.yaml > /dev/null <<'CLEAREOF'
 # Add your custom rules here
 CLEAREOF
+  for NODE in $WORKER_NODES; do
+    scp /etc/falco/falco_rules.local.yaml "$NODE":/etc/falco/falco_rules.local.yaml 2>/dev/null || true
+  done
 
   echo ""
-  pass "Setup complete."
+  echo "═══════════════════════════════════════════"
+  pass "Setup complete. Falco installed on all nodes."
+  echo "═══════════════════════════════════════════"
   echo ""
   echo -e "  ${BOLD}TASK: Detect the pod reading /dev/mem using Falco and scale it down${NC}"
   echo ""
