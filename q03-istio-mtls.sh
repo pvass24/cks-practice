@@ -191,7 +191,7 @@ check)
   fi
 
   # Check 3: PeerAuthentication with mode STRICT exists
-  PA_MODE=$(kubectl get peerauthentication default -n istio-example -o jsonpath='{.spec.mtls.mode}' 2>/dev/null)
+  PA_MODE=$(kubectl get peerauthentication default -n istio-example -o jsonpath='{.spec.mtls.mode}' 2>/dev/null || echo "MISSING")
   if [ "$PA_MODE" = "STRICT" ]; then
     pass "PeerAuthentication 'default' exists with mode STRICT"
     SCORE=$((SCORE + 1))
