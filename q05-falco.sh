@@ -170,12 +170,23 @@ check)
 
   SCORE=0
 
-  # Check 1: Falco rules file has a rule for /dev/mem
+  # Check 1: Falco rules file has a rule for /dev/mem (check all nodes)
+  RULE_FOUND=false
   if sudo grep -q '/dev/mem' /etc/falco/falco_rules.local.yaml 2>/dev/null; then
+    RULE_FOUND=true
+  else
+    for NODE in $(kubectl get nodes --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null || true); do
+      if ssh "$NODE" "grep -q '/dev/mem' /etc/falco/falco_rules.local.yaml" 2>/dev/null; then
+        RULE_FOUND=true
+        break
+      fi
+    done
+  fi
+  if [ "$RULE_FOUND" = "true" ]; then
     pass "Falco local rules contain a rule for /dev/mem"
     SCORE=$((SCORE + 1))
   else
-    fail "No /dev/mem rule found in /etc/falco/falco_rules.local.yaml"
+    fail "No /dev/mem rule found in /etc/falco/falco_rules.local.yaml (checked all nodes)"
   fi
 
   # Check 2: One deployment is scaled to 0
