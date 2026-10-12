@@ -35,8 +35,12 @@ setup)
   if kubectl get pods -n istio-system 2>/dev/null | grep -q "istiod.*Running"; then
     info "Istio control plane already running."
   else
-    info "Installing Istio control plane..."
-    istioctl install --set profile=default -y 2>/dev/null || true
+    info "Installing Istio control plane (minimal profile)..."
+    istioctl install --set profile=minimal \
+      --set values.global.defaultTolerations[0].key=node-role.kubernetes.io/control-plane \
+      --set values.global.defaultTolerations[0].operator=Exists \
+      --set values.global.defaultTolerations[0].effect=NoSchedule \
+      -y 2>/dev/null || true
 
     info "Waiting for istiod to be ready (up to 120s)..."
     for i in $(seq 1 24); do
@@ -46,7 +50,11 @@ setup)
       fi
       if [ "$i" -eq 24 ]; then
         info "Retrying Istio install..."
-        istioctl install --set profile=default -y 2>/dev/null || true
+        istioctl install --set profile=minimal \
+          --set values.global.defaultTolerations[0].key=node-role.kubernetes.io/control-plane \
+          --set values.global.defaultTolerations[0].operator=Exists \
+          --set values.global.defaultTolerations[0].effect=NoSchedule \
+          -y 2>/dev/null || true
         kubectl wait --for=condition=ready pod -l app=istiod -n istio-system --timeout=90s 2>/dev/null || true
       fi
       sleep 5
