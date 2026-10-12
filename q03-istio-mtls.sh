@@ -35,16 +35,21 @@ setup)
   if kubectl get pods -n istio-system 2>/dev/null | grep -q "istiod.*Running"; then
     info "Istio control plane already running."
   else
-    info "Installing Istio control plane (minimal profile)..."
-    istioctl install --set profile=minimal -y 2>/dev/null || true
-
-    # Patch istiod to tolerate control-plane taint (Killercoda worker often has no memory)
-    info "Patching istiod to schedule on control-plane node..."
-    kubectl -n istio-system patch deployment istiod --type=json -p='[
-      {"op":"add","path":"/spec/template/spec/tolerations","value":[
-        {"key":"node-role.kubernetes.io/control-plane","operator":"Exists","effect":"NoSchedule"}
-      ]}
-    ]' 2>/dev/null || true
+    info "Installing Istio control plane (minimal profile + control-plane toleration)..."
+    cat > /tmp/istio-operator.yaml <<'IOEOF'
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  profile: minimal
+  components:
+    pilot:
+      k8s:
+        tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+IOEOF
+    istioctl install -f /tmp/istio-operator.yaml -y || true
 
     info "Waiting for istiod to be ready (up to 120s)..."
     for i in $(seq 1 24); do
@@ -53,12 +58,8 @@ setup)
         break
       fi
       if [ "$i" -eq 24 ]; then
-        info "Retrying — re-patching istiod toleration..."
-        kubectl -n istio-system patch deployment istiod --type=json -p='[
-          {"op":"add","path":"/spec/template/spec/tolerations","value":[
-            {"key":"node-role.kubernetes.io/control-plane","operator":"Exists","effect":"NoSchedule"}
-          ]}
-        ]' 2>/dev/null || true
+        info "Retrying Istio install..."
+        istioctl install -f /tmp/istio-operator.yaml -y || true
         kubectl wait --for=condition=ready pod -l app=istiod -n istio-system --timeout=90s 2>/dev/null || true
       fi
       sleep 5
