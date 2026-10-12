@@ -18,30 +18,44 @@ setup)
 
   # Install Istio if not present
   if ! command -v istioctl &>/dev/null; then
-    info "Installing Istio..."
+    info "Downloading Istio CLI..."
     curl -L https://istio.io/downloadIstio | sh -
     ISTIO_DIR=$(ls -d istio-* 2>/dev/null | head -1)
     if [ -n "$ISTIO_DIR" ]; then
       sudo cp "$ISTIO_DIR/bin/istioctl" /usr/local/bin/
-      istioctl install --set profile=default -y
-      info "Istio installed."
     else
       fail "Istio download failed."
       exit 1
     fi
   else
-    info "Istio already installed."
-    # Ensure Istio is running
-    if ! kubectl get ns istio-system &>/dev/null; then
-      istioctl install --set profile=default -y
-    fi
+    info "Istio CLI already installed."
   fi
 
-  # Create namespace WITHOUT istio-injection label
-  info "Creating namespace istio-example (without injection label)..."
-  kubectl create ns istio-example --dry-run=client -o yaml | kubectl apply -f -
-  # Explicitly remove injection label if present
-  kubectl label ns istio-example istio-injection- 2>/dev/null || true
+  # Install/verify Istio control plane with retry
+  if kubectl get pods -n istio-system 2>/dev/null | grep -q "istiod.*Running"; then
+    info "Istio control plane already running."
+  else
+    info "Installing Istio control plane..."
+    istioctl install --set profile=default -y 2>/dev/null || true
+
+    info "Waiting for istiod to be ready (up to 120s)..."
+    for i in $(seq 1 24); do
+      if kubectl get pods -n istio-system 2>/dev/null | grep -q "istiod.*Running"; then
+        pass "Istio control plane is ready."
+        break
+      fi
+      if [ "$i" -eq 24 ]; then
+        info "Retrying Istio install..."
+        istioctl install --set profile=default -y 2>/dev/null || true
+        kubectl wait --for=condition=ready pod -l app=istiod -n istio-system --timeout=90s 2>/dev/null || true
+      fi
+      sleep 5
+    done
+  fi
+
+  # Create fresh namespace WITHOUT istio-injection label
+  info "Creating fresh namespace istio-example (without injection label)..."
+  fresh_namespace "istio-example"
 
   # Deploy instagram and tinder without sidecars
   info "Deploying instagram and tinder workloads (no sidecars)..."
