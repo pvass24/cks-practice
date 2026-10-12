@@ -11,8 +11,8 @@ case "$MODE" in
 setup)
   header "Q03 — Istio mTLS Setup"
 
-  if [ "$ENV_TYPE" != "kubeadm" ]; then
-    skip "Requires Istio on kubeadm — run on Killercoda"
+  if [ "$ENV_TYPE" = "unknown" ]; then
+    skip "No Kubernetes cluster detected"
     exit 0
   fi
 
@@ -154,8 +154,8 @@ EOF
 check)
   header "Q03 — Istio mTLS Check"
 
-  if [ "$ENV_TYPE" != "kubeadm" ]; then
-    skip "Requires Istio on kubeadm — run on Killercoda"
+  if [ "$ENV_TYPE" = "unknown" ]; then
+    skip "No Kubernetes cluster detected"
     exit 0
   fi
 
