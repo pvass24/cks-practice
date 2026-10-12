@@ -78,7 +78,7 @@ do_check() {
   local pod_selector
   pod_selector=$(echo "$deny_json" | jq -r '.spec.podSelector // empty')
   local policy_types
-  policy_types=$(echo "$deny_json" | jq -r '.spec.policyTypes[]? // empty' 2>/dev/null)
+  policy_types=$(echo "$deny_json" | jq -r '.spec.policyTypes[]? // empty' 2>/dev/null || true)
   local ingress_rules
   ingress_rules=$(echo "$deny_json" | jq -r '.spec.ingress // empty')
 
@@ -117,7 +117,7 @@ do_check() {
   allow_json=$(kubectl get networkpolicy allow-from-production -n "$NS_DB" -o json 2>/dev/null || echo "{}")
 
   local ns_match
-  ns_match=$(echo "$allow_json" | jq -r '.spec.ingress[0].from[0].namespaceSelector.matchLabels.env // empty' 2>/dev/null)
+  ns_match=$(echo "$allow_json" | jq -r '.spec.ingress[0].from[0].namespaceSelector.matchLabels.env // empty' 2>/dev/null || true)
   if [ "$ns_match" = "production" ]; then
     pass "allow-from-production: allows ingress from namespaceSelector env=production"
     score=$((score + 1))

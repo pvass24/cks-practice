@@ -78,7 +78,7 @@ do_check() {
 
   # Check 1: SA has automountServiceAccountToken: false
   local sa_automount
-  sa_automount=$(kubectl get sa "$SA_NAME" -n "$NAMESPACE" -o jsonpath='{.automountServiceAccountToken}' 2>/dev/null)
+  sa_automount=$(kubectl get sa "$SA_NAME" -n "$NAMESPACE" -o jsonpath='{.automountServiceAccountToken}' 2>/dev/null || true)
   if [ "$sa_automount" = "false" ]; then
     pass "ServiceAccount $SA_NAME has automountServiceAccountToken: false"
     score=$((score + 1))
@@ -88,7 +88,7 @@ do_check() {
 
   # Get pod spec JSON
   local pod_spec
-  pod_spec=$(kubectl get deploy "$DEPLOY_NAME" -n "$NAMESPACE" -o json 2>/dev/null)
+  pod_spec=$(kubectl get deploy "$DEPLOY_NAME" -n "$NAMESPACE" -o json 2>/dev/null || true)
 
   if [ -z "$pod_spec" ]; then
     fail "Deployment $DEPLOY_NAME not found in namespace $NAMESPACE"
@@ -102,7 +102,7 @@ do_check() {
 import sys, json
 d = json.load(sys.stdin)
 print(d.get('spec',{}).get('template',{}).get('spec',{}).get('automountServiceAccountToken','NOT_SET'))
-" 2>/dev/null)
+" 2>/dev/null || true)
   if [ "$deploy_automount" = "False" ] || [ "$deploy_automount" = "false" ]; then
     pass "Deployment pod spec has automountServiceAccountToken: false"
     score=$((score + 1))
@@ -124,7 +124,7 @@ for v in volumes:
             print('yes')
             sys.exit(0)
 print('no')
-" 2>/dev/null)
+" 2>/dev/null || true)
   if [ "$has_projected_sa" = "yes" ]; then
     pass "Projected volume with serviceAccountToken source exists"
     score=$((score + 1))
@@ -147,7 +147,7 @@ for v in volumes:
             print('yes')
             sys.exit(0)
 print('no')
-" 2>/dev/null)
+" 2>/dev/null || true)
   if [ "$has_expiration" = "yes" ]; then
     pass "serviceAccountToken has expirationSeconds set"
     score=$((score + 1))
@@ -168,7 +168,7 @@ for c in containers:
             print('yes')
             sys.exit(0)
 print('no')
-" 2>/dev/null)
+" 2>/dev/null || true)
   if [ "$has_readonly_mount" = "yes" ]; then
     pass "Volume mount is readOnly"
     score=$((score + 1))

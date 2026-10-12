@@ -162,7 +162,7 @@ check)
   SCORE=0
 
   # Check 1: Namespace has istio-injection=enabled
-  INJECTION_LABEL=$(kubectl get ns istio-example -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null)
+  INJECTION_LABEL=$(kubectl get ns istio-example -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null || true)
   if [ "$INJECTION_LABEL" = "enabled" ]; then
     pass "Namespace istio-example has istio-injection=enabled"
     SCORE=$((SCORE + 1))

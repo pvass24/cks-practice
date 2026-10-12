@@ -160,7 +160,7 @@ for r in rules:
 
 for k, v in results.items():
     print(f'{k}={v}')
-" 2>/dev/null)
+" 2>/dev/null || true)
 
     # Check 2: namespaces at RequestResponse
     if echo "$policy_checks" | grep -q 'namespaces_rr=True'; then

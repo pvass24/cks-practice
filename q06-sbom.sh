@@ -116,7 +116,7 @@ check)
   fi
 
   # Check 3: The removed container was crypto-util (the one with libcrypto3 3.1.4-r5)
-  CONTAINERS=$(kubectl get deployment sbom -n sbom -o jsonpath='{.spec.template.spec.containers[*].name}' 2>/dev/null)
+  CONTAINERS=$(kubectl get deployment sbom -n sbom -o jsonpath='{.spec.template.spec.containers[*].name}' 2>/dev/null || true)
   if ! echo "$CONTAINERS" | grep -q 'crypto-util'; then
     pass "Vulnerable container 'crypto-util' (libcrypto3 3.1.4-r5) was removed"
     SCORE=$((SCORE + 1))

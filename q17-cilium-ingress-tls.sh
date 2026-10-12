@@ -141,7 +141,7 @@ do_check() {
   fi
 
   # Check 2: IngressClass is cilium
-  local ingclass=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o jsonpath='{.spec.ingressClassName}' 2>/dev/null)
+  local ingclass=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o jsonpath='{.spec.ingressClassName}' 2>/dev/null || true)
   if [ "$ingclass" = "cilium" ]; then
     pass "ingressClassName = cilium"
     score=$((score + 1))
@@ -153,8 +153,8 @@ do_check() {
   fi
 
   # Check 3: TLS configured with correct secret
-  local tlsSecret=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o jsonpath='{.spec.tls[0].secretName}' 2>/dev/null)
-  local tlsHost=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o jsonpath='{.spec.tls[0].hosts[0]}' 2>/dev/null)
+  local tlsSecret=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o jsonpath='{.spec.tls[0].secretName}' 2>/dev/null || true)
+  local tlsHost=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o jsonpath='{.spec.tls[0].hosts[0]}' 2>/dev/null || true)
   if [ "$tlsSecret" = "web-tls" ] && [ "$tlsHost" = "$HOSTNAME" ]; then
     pass "TLS: secret=web-tls, host=$HOSTNAME"
     score=$((score + 1))
@@ -164,8 +164,8 @@ do_check() {
   fi
 
   # Check 4: Host rule and backend
-  local ruleHost=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o jsonpath='{.spec.rules[0].host}' 2>/dev/null)
-  local backend=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o jsonpath='{.spec.rules[0].http.paths[0].backend.service.name}' 2>/dev/null)
+  local ruleHost=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)
+  local backend=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o jsonpath='{.spec.rules[0].http.paths[0].backend.service.name}' 2>/dev/null || true)
   if [ "$ruleHost" = "$HOSTNAME" ] && [ "$backend" = "web-service" ]; then
     pass "Rule: $HOSTNAME → web-service"
     score=$((score + 1))
@@ -174,7 +174,7 @@ do_check() {
   fi
 
   # Check 5: HTTPS redirect — Cilium uses its own annotation
-  local annotations=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o json 2>/dev/null)
+  local annotations=$(kubectl get ingress web-ingress -n "$NAMESPACE" -o json 2>/dev/null || true)
   local has_redirect=false
 
   # Check for Cilium force-https annotation

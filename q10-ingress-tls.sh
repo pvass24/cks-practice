@@ -117,7 +117,7 @@ check)
   fi
 
   # Check 2: Ingress has TLS configured with secretName web-ingress-tls
-  TLS_SECRET=$(kubectl get ingress web-ingress -n production -o jsonpath='{.spec.tls[0].secretName}' 2>/dev/null)
+  TLS_SECRET=$(kubectl get ingress web-ingress -n production -o jsonpath='{.spec.tls[0].secretName}' 2>/dev/null || true)
   if [ "$TLS_SECRET" = "web-ingress-tls" ]; then
     pass "Ingress has TLS configured with secretName 'web-ingress-tls'"
     SCORE=$((SCORE + 1))
@@ -126,8 +126,8 @@ check)
   fi
 
   # Check 3: Ingress has host web.k8s.local
-  HOSTS=$(kubectl get ingress web-ingress -n production -o jsonpath='{.spec.rules[*].host}' 2>/dev/null)
-  TLS_HOSTS=$(kubectl get ingress web-ingress -n production -o jsonpath='{.spec.tls[0].hosts[*]}' 2>/dev/null)
+  HOSTS=$(kubectl get ingress web-ingress -n production -o jsonpath='{.spec.rules[*].host}' 2>/dev/null || true)
+  TLS_HOSTS=$(kubectl get ingress web-ingress -n production -o jsonpath='{.spec.tls[0].hosts[*]}' 2>/dev/null || true)
   if echo "$HOSTS" | grep -q 'web.k8s.local'; then
     pass "Ingress has host 'web.k8s.local'"
     SCORE=$((SCORE + 1))

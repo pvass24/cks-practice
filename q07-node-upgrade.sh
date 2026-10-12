@@ -17,16 +17,16 @@ setup)
   fi
 
   # Get node info
-  CONTROL_PLANE=$(kubectl get nodes --selector='node-role.kubernetes.io/control-plane' -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-  WORKER=$(kubectl get nodes --selector='!node-role.kubernetes.io/control-plane' -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+  CONTROL_PLANE=$(kubectl get nodes --selector='node-role.kubernetes.io/control-plane' -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+  WORKER=$(kubectl get nodes --selector='!node-role.kubernetes.io/control-plane' -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
 
   if [ -z "$WORKER" ]; then
     fail "No worker node found. This question requires a 2-node cluster."
     exit 1
   fi
 
-  CP_VERSION=$(kubectl get node "$CONTROL_PLANE" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null)
-  WORKER_VERSION=$(kubectl get node "$WORKER" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null)
+  CP_VERSION=$(kubectl get node "$CONTROL_PLANE" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null || true)
+  WORKER_VERSION=$(kubectl get node "$WORKER" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null || true)
 
   info "Cluster nodes:"
   info "  Control plane: $CONTROL_PLANE ($CP_VERSION)"
@@ -69,8 +69,8 @@ check)
 
   SCORE=0
 
-  CONTROL_PLANE=$(kubectl get nodes --selector='node-role.kubernetes.io/control-plane' -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-  WORKER=$(kubectl get nodes --selector='!node-role.kubernetes.io/control-plane' -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+  CONTROL_PLANE=$(kubectl get nodes --selector='node-role.kubernetes.io/control-plane' -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+  WORKER=$(kubectl get nodes --selector='!node-role.kubernetes.io/control-plane' -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
 
   if [ -z "$WORKER" ]; then
     fail "No worker node found."
@@ -78,8 +78,8 @@ check)
     exit 0
   fi
 
-  CP_VERSION=$(kubectl get node "$CONTROL_PLANE" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null)
-  WORKER_VERSION=$(kubectl get node "$WORKER" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null)
+  CP_VERSION=$(kubectl get node "$CONTROL_PLANE" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null || true)
+  WORKER_VERSION=$(kubectl get node "$WORKER" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null || true)
 
   # Check 1: Worker kubelet version matches control plane
   if [ "$CP_VERSION" = "$WORKER_VERSION" ]; then
@@ -90,8 +90,8 @@ check)
   fi
 
   # Check 2: Worker node is Ready
-  WORKER_STATUS=$(kubectl get node "$WORKER" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
-  WORKER_SCHED=$(kubectl get node "$WORKER" -o jsonpath='{.spec.unschedulable}' 2>/dev/null)
+  WORKER_STATUS=$(kubectl get node "$WORKER" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)
+  WORKER_SCHED=$(kubectl get node "$WORKER" -o jsonpath='{.spec.unschedulable}' 2>/dev/null || true)
   if [ "$WORKER_STATUS" = "True" ] && [ "$WORKER_SCHED" != "true" ]; then
     pass "Worker node $WORKER is Ready and schedulable"
     SCORE=$((SCORE + 1))

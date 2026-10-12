@@ -182,7 +182,7 @@ check)
   SCALED_DOWN=0
   OFFENDER=""
   for DEPLOY in facebook instagram tinder; do
-    REPLICAS=$(kubectl get deployment "$DEPLOY" -n neuron -o jsonpath='{.spec.replicas}' 2>/dev/null)
+    REPLICAS=$(kubectl get deployment "$DEPLOY" -n neuron -o jsonpath='{.spec.replicas}' 2>/dev/null || true)
     if [ "$REPLICAS" = "0" ]; then
       SCALED_DOWN=$((SCALED_DOWN + 1))
       OFFENDER="$DEPLOY"
@@ -201,7 +201,7 @@ check)
   # Check 3: Other deployments still running
   RUNNING=0
   for DEPLOY in facebook instagram tinder; do
-    REPLICAS=$(kubectl get deployment "$DEPLOY" -n neuron -o jsonpath='{.spec.replicas}' 2>/dev/null)
+    REPLICAS=$(kubectl get deployment "$DEPLOY" -n neuron -o jsonpath='{.spec.replicas}' 2>/dev/null || true)
     if [ "$REPLICAS" -gt 0 ] 2>/dev/null; then
       RUNNING=$((RUNNING + 1))
     fi
