@@ -2,26 +2,26 @@
 source "$(dirname "$0")/lib.sh"
 
 QUESTION="Q15 — Audit Logging"
-POLICY_DIR="/etc/kubernetes/logpolicy"
-POLICY_FILE="$POLICY_DIR/policy.yaml"
 APISERVER_MANIFEST="/etc/kubernetes/manifests/kube-apiserver.yaml"
 AUDIT_LOG_DIR="/var/log/kubernetes/audit"
+
+# Use local paths on kind, real paths on kubeadm
+if [ -d "/etc/kubernetes/logpolicy" ] || [ "$ENV_TYPE" = "kubeadm" ]; then
+  POLICY_DIR="/etc/kubernetes/logpolicy"
+else
+  POLICY_DIR="$HOME/cks-audit"
+fi
+POLICY_FILE="$POLICY_DIR/policy.yaml"
 
 do_setup() {
   header "$QUESTION — SETUP"
 
-  if ! requires_kubeadm; then
-    skip "Requires kubeadm cluster — run on Killercoda"
-    exit 0
-  fi
-
-  info "Creating baseline audit policy directory and weak policy..."
+  info "Creating baseline audit policy..."
 
   # Create policy directory
   mkdir -p "$POLICY_DIR"
-  mkdir -p "$AUDIT_LOG_DIR"
 
-  # Create baseline policy with only None rules (user must replace)
+  # Create baseline policy with only None rules (user must extend)
   cat > "$POLICY_FILE" <<'EOF'
 apiVersion: audit.k8s.io/v1
 kind: Policy
@@ -38,71 +38,71 @@ EOF
 
   info "Baseline policy written to $POLICY_FILE"
 
-  # Clear any existing audit logs
-  rm -f "$AUDIT_LOG_DIR"/*.log 2>/dev/null || true
+  # kubeadm-only: patch API server volumes and clear logs
+  if [ "$ENV_TYPE" = "kubeadm" ]; then
+    mkdir -p "$AUDIT_LOG_DIR"
+    rm -f "$AUDIT_LOG_DIR"/*.log 2>/dev/null || true
 
-  # Add volume and volumeMount to kube-apiserver (but NOT the flags)
-  if [ -f "$APISERVER_MANIFEST" ]; then
-    cp "$APISERVER_MANIFEST" "${APISERVER_MANIFEST}.bak"
+    if [ -f "$APISERVER_MANIFEST" ]; then
+      cp "$APISERVER_MANIFEST" /root/kube-apiserver.yaml.bak
+      info "Backed up API server manifest"
 
-    # Check if volumes already have the audit entries
-    if ! grep -q 'name: audit-policy' "$APISERVER_MANIFEST"; then
-      # Add volumeMount for audit policy and logs
-      python3 -c "
-import yaml, sys
-
+      if ! grep -q 'name: audit-policy' "$APISERVER_MANIFEST"; then
+        python3 -c "
+import yaml
 with open('$APISERVER_MANIFEST') as f:
     manifest = yaml.safe_load(f)
-
 containers = manifest['spec']['containers']
 volumes = manifest['spec'].get('volumes', [])
 vol_mounts = containers[0].get('volumeMounts', [])
-
-# Add audit policy volume + mount if not present
 policy_vol = {'name': 'audit-policy', 'hostPath': {'path': '$POLICY_DIR', 'type': 'DirectoryOrCreate'}}
 policy_mount = {'name': 'audit-policy', 'mountPath': '$POLICY_DIR', 'readOnly': True}
-
 log_vol = {'name': 'audit-log', 'hostPath': {'path': '$AUDIT_LOG_DIR', 'type': 'DirectoryOrCreate'}}
 log_mount = {'name': 'audit-log', 'mountPath': '$AUDIT_LOG_DIR'}
-
 if not any(v.get('name') == 'audit-policy' for v in volumes):
     volumes.append(policy_vol)
     vol_mounts.append(policy_mount)
-
 if not any(v.get('name') == 'audit-log' for v in volumes):
     volumes.append(log_vol)
     vol_mounts.append(log_mount)
-
 manifest['spec']['volumes'] = volumes
 containers[0]['volumeMounts'] = vol_mounts
-
 with open('$APISERVER_MANIFEST', 'w') as f:
     yaml.dump(manifest, f, default_flow_style=False)
-" 2>/dev/null || info "Could not auto-patch volumes — you may need to add them manually"
-    fi
+" 2>/dev/null || info "Could not auto-patch volumes — add them manually"
+      fi
 
-    # Remove audit flags if present (user must add them)
-    sed -i '/--audit-policy-file/d' "$APISERVER_MANIFEST"
-    sed -i '/--audit-log-path/d' "$APISERVER_MANIFEST"
+      sed -i '/--audit-policy-file/d' "$APISERVER_MANIFEST"
+      sed -i '/--audit-log-path/d' "$APISERVER_MANIFEST"
+    fi
   fi
 
   echo ""
   pass "Setup complete."
   echo ""
-  echo "TASK: Configure Kubernetes audit logging:"
+  echo -e "  ${BOLD}TASK: Configure Kubernetes audit logging${NC}"
   echo ""
-  echo "  1. Edit the audit policy at: $POLICY_FILE"
-  echo "     Required rules (in order):"
-  echo "       a. Namespaces: RequestResponse level"
-  echo "       b. ConfigMaps in namespace 'frontend': Request level"
-  echo "       c. ConfigMaps and Secrets everywhere: Metadata level"
-  echo "       d. Catch-all: Metadata level"
+  echo "  Policy file: $POLICY_FILE"
   echo ""
-  echo "  2. Add API server flags in $APISERVER_MANIFEST:"
-  echo "       --audit-policy-file=$POLICY_FILE"
-  echo "       --audit-log-path=$AUDIT_LOG_DIR/audit.log"
+  echo "  Extend the baseline policy with these rules (order matters!):"
+  echo "    1. Namespaces → RequestResponse level"
+  echo "    2. ConfigMaps in namespace 'frontend' → Request level (log request bodies)"
+  echo "    3. ConfigMaps and Secrets in all namespaces → Metadata level"
+  echo "    4. Catch-all → Metadata level"
   echo ""
-  echo "  (Volumes are already mounted for you.)"
+  if [ "$ENV_TYPE" = "kubeadm" ]; then
+    echo "  Then add API server flags in $APISERVER_MANIFEST:"
+    echo "    --audit-policy-file=$POLICY_FILE"
+    echo "    --audit-log-path=$AUDIT_LOG_DIR/audit.log"
+    echo "    --audit-log-maxage=10"
+    echo "    --audit-log-maxbackup=2"
+    echo ""
+    echo "  (Volumes are already mounted for you.)"
+  else
+    echo "  (On kind: practice writing the policy only — API server flags need Killercoda)"
+  fi
+  echo ""
+  echo "  When ready: ./run.sh 15 check"
   echo ""
   timer_start
 }
