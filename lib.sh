@@ -30,8 +30,8 @@ ENV_TYPE=$(detect_env)
 PRISTINE_DIR="/root/.cks-pristine"
 
 # One-time snapshot of all critical config files in their original state.
-# Run once at the start of a session (or on first ./run.sh invocation).
-# After this, every clean_apiserver call just copies these back — bulletproof.
+# Must be run BEFORE any question modifies configs. Use ./run.sh init
+# to take the snapshot from a known-good cluster.
 save_pristine() {
   if [ "$ENV_TYPE" != "kubeadm" ]; then
     return 0
@@ -40,7 +40,14 @@ save_pristine() {
     return 0
   fi
 
-  info "First run — saving pristine cluster config snapshot..."
+  # Refuse to snapshot a broken cluster
+  if ! kubectl get nodes &>/dev/null 2>&1; then
+    fail "Cannot save pristine snapshot — cluster is not healthy!"
+    fail "Fix the cluster first, then run: ./run.sh init"
+    return 1
+  fi
+
+  info "Saving pristine cluster config snapshot..."
   sudo mkdir -p "$PRISTINE_DIR"
 
   # API server manifest

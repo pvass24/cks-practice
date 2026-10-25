@@ -98,6 +98,26 @@ if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "help" ]; 
   exit 0
 fi
 
+# ./run.sh init — take pristine snapshot from a known-good cluster
+if [ "$1" = "init" ]; then
+  header "Pristine Snapshot"
+  if [ -f "$PRISTINE_DIR/.saved" ]; then
+    echo -e "  ${YELLOW}Snapshot already exists at $PRISTINE_DIR${NC}"
+    echo -e "  To force re-snapshot: ${BOLD}sudo rm -rf $PRISTINE_DIR && ./run.sh init${NC}"
+    exit 0
+  fi
+  if save_pristine; then
+    echo ""
+    echo -e "  ${GREEN}Ready to go. Run: ./run.sh 1${NC}"
+  else
+    echo ""
+    echo -e "  ${RED}Cluster must be healthy before taking snapshot.${NC}"
+    echo -e "  ${RED}Fix it, then re-run: ./run.sh init${NC}"
+    exit 1
+  fi
+  exit 0
+fi
+
 NUM="$1"
 MODE="${2:-setup}"
 HINT_LEVEL="${3:-1}"
