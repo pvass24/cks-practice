@@ -27,67 +27,119 @@ detect_env() {
 
 ENV_TYPE=$(detect_env)
 
-# Restore API server to clean state between questions
-# Removes ImagePolicyWebhook, audit flags, webhook volumes — anything previous Qs added
+PRISTINE_DIR="/root/.cks-pristine"
+
+# One-time snapshot of all critical config files in their original state.
+# Run once at the start of a session (or on first ./run.sh invocation).
+# After this, every clean_apiserver call just copies these back — bulletproof.
+save_pristine() {
+  if [ "$ENV_TYPE" != "kubeadm" ]; then
+    return 0
+  fi
+  if [ -f "$PRISTINE_DIR/.saved" ]; then
+    return 0
+  fi
+
+  info "First run — saving pristine cluster config snapshot..."
+  sudo mkdir -p "$PRISTINE_DIR"
+
+  # API server manifest
+  if [ -f /etc/kubernetes/manifests/kube-apiserver.yaml ]; then
+    sudo cp /etc/kubernetes/manifests/kube-apiserver.yaml "$PRISTINE_DIR/kube-apiserver.yaml"
+  fi
+
+  # etcd manifest
+  if [ -f /etc/kubernetes/manifests/etcd.yaml ]; then
+    sudo cp /etc/kubernetes/manifests/etcd.yaml "$PRISTINE_DIR/etcd.yaml"
+  fi
+
+  # Kubelet config
+  if [ -f /var/lib/kubelet/config.yaml ]; then
+    sudo cp /var/lib/kubelet/config.yaml "$PRISTINE_DIR/kubelet-config.yaml"
+  fi
+
+  # Docker daemon configs (for Q16)
+  if [ -f /lib/systemd/system/docker.service ]; then
+    sudo cp /lib/systemd/system/docker.service "$PRISTINE_DIR/docker.service"
+  fi
+  if [ -f /lib/systemd/system/docker.socket ]; then
+    sudo cp /lib/systemd/system/docker.socket "$PRISTINE_DIR/docker.socket"
+  fi
+
+  sudo touch "$PRISTINE_DIR/.saved"
+  pass "Pristine snapshot saved to $PRISTINE_DIR"
+}
+
+# Restore cluster to pristine state before each question.
+# No sed, no guessing — just copy the originals back.
 clean_apiserver() {
   if [ "$ENV_TYPE" != "kubeadm" ]; then
     return 0
   fi
 
-  local manifest="/etc/kubernetes/manifests/kube-apiserver.yaml"
-  if [ ! -f "$manifest" ]; then
-    return 0
-  fi
-
-  # Back up first if no backup exists
-  if [ ! -f /root/kube-apiserver.yaml.clean ]; then
-    # Only save as clean if API server is currently working
-    if kubectl get nodes &>/dev/null 2>&1; then
-      sudo cp "$manifest" /root/kube-apiserver.yaml.clean
-    fi
-  fi
+  # Ensure we have a pristine snapshot
+  save_pristine
 
   local needs_restart=false
 
-  # Remove ImagePolicyWebhook from admission plugins
-  if sudo grep -q 'ImagePolicyWebhook' "$manifest" 2>/dev/null; then
-    sudo sed -i 's/,ImagePolicyWebhook//g; s/ImagePolicyWebhook,//g; s/ImagePolicyWebhook//g' "$manifest"
-    needs_restart=true
+  # Restore API server manifest
+  if [ -f "$PRISTINE_DIR/kube-apiserver.yaml" ]; then
+    if ! diff -q "$PRISTINE_DIR/kube-apiserver.yaml" /etc/kubernetes/manifests/kube-apiserver.yaml &>/dev/null 2>&1; then
+      sudo cp "$PRISTINE_DIR/kube-apiserver.yaml" /etc/kubernetes/manifests/kube-apiserver.yaml
+      needs_restart=true
+      info "API server manifest restored from pristine snapshot"
+    fi
   fi
 
-  # Remove admission-control-config-file flag
-  if sudo grep -q 'admission-control-config-file' "$manifest" 2>/dev/null; then
-    sudo sed -i '/admission-control-config-file/d' "$manifest"
-    needs_restart=true
+  # Restore etcd manifest
+  if [ -f "$PRISTINE_DIR/etcd.yaml" ]; then
+    if ! diff -q "$PRISTINE_DIR/etcd.yaml" /etc/kubernetes/manifests/etcd.yaml &>/dev/null 2>&1; then
+      sudo cp "$PRISTINE_DIR/etcd.yaml" /etc/kubernetes/manifests/etcd.yaml
+      info "etcd manifest restored from pristine snapshot"
+    fi
   fi
 
-  # Remove audit flags
-  if sudo grep -q 'audit-log-path\|audit-policy-file\|audit-log-max' "$manifest" 2>/dev/null; then
-    sudo sed -i '/audit-log-path/d; /audit-policy-file/d; /audit-log-maxage/d; /audit-log-maxbackup/d; /audit-log-maxsize/d' "$manifest"
-    needs_restart=true
+  # Restore kubelet config
+  if [ -f "$PRISTINE_DIR/kubelet-config.yaml" ]; then
+    if ! diff -q "$PRISTINE_DIR/kubelet-config.yaml" /var/lib/kubelet/config.yaml &>/dev/null 2>&1; then
+      sudo cp "$PRISTINE_DIR/kubelet-config.yaml" /var/lib/kubelet/config.yaml
+      sudo systemctl daemon-reload &>/dev/null 2>&1 || true
+      sudo systemctl restart kubelet &>/dev/null 2>&1 || true
+      needs_restart=true
+      info "Kubelet config restored from pristine snapshot"
+    fi
   fi
 
-  # Remove webhook-config volume and mount
-  if sudo grep -q 'webhook-config' "$manifest" 2>/dev/null; then
-    sudo python3 -c "
-import yaml
-with open('$manifest') as f:
-    m = yaml.safe_load(f)
-c = m['spec']['containers'][0]
-c['volumeMounts'] = [v for v in c.get('volumeMounts',[]) if v.get('name') not in ('webhook-config','audit-policy','audit-logs')]
-m['spec']['volumes'] = [v for v in m['spec'].get('volumes',[]) if v.get('name') not in ('webhook-config','audit-policy','audit-logs')]
-with open('$manifest','w') as f:
-    yaml.dump(m, f, default_flow_style=False)
-" 2>/dev/null || true
-    needs_restart=true
+  # Restore docker configs
+  if [ -f "$PRISTINE_DIR/docker.service" ]; then
+    if ! diff -q "$PRISTINE_DIR/docker.service" /lib/systemd/system/docker.service &>/dev/null 2>&1; then
+      sudo cp "$PRISTINE_DIR/docker.service" /lib/systemd/system/docker.service
+      sudo systemctl daemon-reload &>/dev/null 2>&1 || true
+      sudo systemctl restart docker &>/dev/null 2>&1 || true
+      info "Docker service restored from pristine snapshot"
+    fi
+  fi
+  if [ -f "$PRISTINE_DIR/docker.socket" ]; then
+    if ! diff -q "$PRISTINE_DIR/docker.socket" /lib/systemd/system/docker.socket &>/dev/null 2>&1; then
+      sudo cp "$PRISTINE_DIR/docker.socket" /lib/systemd/system/docker.socket
+      info "Docker socket restored from pristine snapshot"
+    fi
   fi
 
+  # Remove webhook config dir left by Q2
+  sudo rm -rf /etc/kubernetes/webhook 2>/dev/null || true
+
+  # Wait for cluster to be healthy after any restores
   if [ "$needs_restart" = "true" ]; then
-    info "Cleaned API server from previous question changes..."
-    sleep 15
-    for i in $(seq 1 20); do
+    info "Waiting for cluster to stabilize..."
+    sleep 10
+    for i in $(seq 1 30); do
       if kubectl get nodes &>/dev/null 2>&1; then
+        pass "Cluster is healthy"
         break
+      fi
+      if [ "$i" -eq 30 ]; then
+        fail "Cluster not healthy after 90s — may need manual intervention"
       fi
       sleep 3
     done
@@ -100,26 +152,11 @@ with open('$manifest','w') as f:
         kubectl delete namespace "$ns" --ignore-not-found &>/dev/null 2>&1 || true
       fi
     done
-    # Wait for any Terminating namespaces to finish
     for i in $(seq 1 15); do
       if ! kubectl get ns 2>/dev/null | grep -q Terminating; then
         break
       fi
       sleep 2
-    done
-  fi
-
-  # Restore kubelet config if backup exists
-  if [ -f /var/lib/kubelet/config.yaml.bak ]; then
-    sudo cp /var/lib/kubelet/config.yaml.bak /var/lib/kubelet/config.yaml
-    sudo systemctl daemon-reload &>/dev/null 2>&1 || true
-    sudo systemctl restart kubelet &>/dev/null 2>&1 || true
-    info "Kubelet config restored from backup, waiting for cluster..."
-    for i in $(seq 1 20); do
-      if kubectl get nodes &>/dev/null 2>&1; then
-        break
-      fi
-      sleep 3
     done
   fi
 

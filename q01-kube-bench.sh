@@ -30,8 +30,6 @@ do_setup() {
   info "Weakening kubelet config to create insecure baseline..."
 
   if [ -f "$KUBELET_CONFIG" ]; then
-    cp "$KUBELET_CONFIG" "${KUBELET_CONFIG}.bak"
-
     python3 - "$KUBELET_CONFIG" <<'PYEOF'
 import yaml, sys
 config_path = sys.argv[1]
@@ -58,7 +56,6 @@ PYEOF
   fi
 
   if [ -f "$ETCD_MANIFEST" ]; then
-    cp "$ETCD_MANIFEST" "${ETCD_MANIFEST}.bak"
     sed -i 's/--client-cert-auth=true/--client-cert-auth=false/' "$ETCD_MANIFEST"
   else
     fail "ETCD manifest not found at $ETCD_MANIFEST"
