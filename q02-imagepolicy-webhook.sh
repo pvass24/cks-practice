@@ -70,8 +70,21 @@ KCEOF
   # Only add volume mount — user adds the flags themselves
   info "Adding webhook volume mount to kube-apiserver..."
   if ! sudo grep -q "webhook-config" "$APISERVER_MANIFEST" 2>/dev/null; then
-    sudo sed -i '/volumeMounts:/a\    - name: webhook-config\n      mountPath: /etc/kubernetes/webhook\n      readOnly: true' "$APISERVER_MANIFEST"
-    sudo sed -i '/volumes:/a\  - name: webhook-config\n    hostPath:\n      path: /etc/kubernetes/webhook\n      type: DirectoryOrCreate' "$APISERVER_MANIFEST"
+    sudo python3 - "$APISERVER_MANIFEST" <<'PYEOF'
+import yaml, sys
+manifest_path = sys.argv[1]
+with open(manifest_path) as f:
+    m = yaml.safe_load(f)
+c = m["spec"]["containers"][0]
+vm = {"name": "webhook-config", "mountPath": "/etc/kubernetes/webhook", "readOnly": True}
+if not any(v.get("name") == "webhook-config" for v in c.get("volumeMounts", [])):
+    c.setdefault("volumeMounts", []).append(vm)
+vol = {"name": "webhook-config", "hostPath": {"path": "/etc/kubernetes/webhook", "type": "DirectoryOrCreate"}}
+if not any(v.get("name") == "webhook-config" for v in m["spec"].get("volumes", [])):
+    m["spec"].setdefault("volumes", []).append(vol)
+with open(manifest_path, "w") as f:
+    yaml.dump(m, f, default_flow_style=False)
+PYEOF
   fi
 
   # Wait for API server to come back after volume mount change
