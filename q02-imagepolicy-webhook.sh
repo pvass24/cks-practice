@@ -79,7 +79,7 @@ KCEOF
   echo "       - Set allowTTL to 100"
   echo ""
   echo -e "    ${BOLD}2. /etc/kubernetes/webhook/kube-config.yml${NC}"
-  echo "       - Set the webhook server URL"
+  echo "       - Set the webhook server URL to: https://image-checker.example.com:1323/image_policy"
   echo ""
   echo -e "    ${BOLD}3. /etc/kubernetes/manifests/kube-apiserver.yaml${NC}"
   echo "       - Add ImagePolicyWebhook to --enable-admission-plugins"
