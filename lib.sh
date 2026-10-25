@@ -112,7 +112,15 @@ with open('$manifest','w') as f:
   # Restore kubelet config if backup exists
   if [ -f /var/lib/kubelet/config.yaml.bak ]; then
     sudo cp /var/lib/kubelet/config.yaml.bak /var/lib/kubelet/config.yaml
+    sudo systemctl daemon-reload &>/dev/null 2>&1 || true
     sudo systemctl restart kubelet &>/dev/null 2>&1 || true
+    info "Kubelet config restored from backup, waiting for cluster..."
+    for i in $(seq 1 20); do
+      if kubectl get nodes &>/dev/null 2>&1; then
+        break
+      fi
+      sleep 3
+    done
   fi
 
   # Clean up leftover files from other questions
