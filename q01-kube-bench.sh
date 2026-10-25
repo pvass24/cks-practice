@@ -70,19 +70,25 @@ PYEOF
   info "Kubelet restarted."
 
   echo ""
-  pass "Setup complete. The kubelet and etcd are now insecure."
+  pass "Setup complete. Environment is ready."
   echo ""
-  echo "TASK: A CIS benchmark scan has flagged critical violations."
+  echo -e "${BOLD}  Context:${NC}"
+  echo "  A CIS benchmark scan against a kubeadm cluster has found multiple"
+  echo "  issues that must be resolved immediately."
   echo ""
-  echo "  1. Run kube-bench to identify the failures:"
-  echo "     kube-bench run --targets node"
-  echo "     kube-bench run --targets etcd"
+  echo -e "${BOLD}  Task:${NC}"
+  echo "  Fix all issues via configuration and restart the affected components"
+  echo "  to ensure the new settings take effect."
   echo ""
-  echo "  2. Fix ALL reported violations in:"
-  echo "     - $KUBELET_CONFIG"
-  echo "     - $ETCD_MANIFEST"
+  echo "  Fix all of the following violations found against the ${BOLD}Kubelet${NC}:"
+  echo "    1.1  Ensure that the anonymous-auth argument is set to false"
+  echo "    1.2  Ensure that --authorization-mode is not set to AlwaysAllow"
+  echo "         Note: Use Webhook authentication/authorization where possible."
   echo ""
-  echo "  3. Restart affected components so changes take effect."
+  echo "  Fix all of the following violations found against ${BOLD}etcd${NC}:"
+  echo "    2.1  Ensure that --client-cert-auth is set to true"
+  echo ""
+  echo -e "  ${CYAN}Hint: Use the tool kube-bench${NC}"
   echo ""
   echo "  When done: ./run.sh 1 check"
   echo ""
@@ -264,39 +270,37 @@ do_solution() {
 
   cat <<'SOLUTION'
 
-  ┌─────────────────────────────────────────────────┐
-  │  EXAM SPEED RUN — Total time target: 5 minutes  │
-  └─────────────────────────────────────────────────┘
+  ┌─────────────────────────────────────────────────────────────┐
+  │  EXAM SPEED RUN — Total time target: 5 minutes              │
+  │  Matches real CKS exam phrasing (2024-2025 reports)         │
+  └─────────────────────────────────────────────────────────────┘
 
-  STEP 1: Find the failures (30 seconds)
-  ───────────────────────────────────────
-  kube-bench run 2>/dev/null | grep "\[FAIL\]"
-
-  You're looking for kubelet (4.2.x) and etcd (2.x) failures.
-  Ignore everything else — the question tells you what to fix.
+  KEY INSIGHT: The real exam TELLS you what to fix. You don't need
+  to discover failures with kube-bench — it's listed in the task.
+  kube-bench is for verification only. Go straight to the files.
 
 
-  STEP 2: Find the kubelet config (10 seconds)
+  STEP 1: Find the kubelet config (10 seconds)
   ─────────────────────────────────────────────
   ps -ef | grep kubelet | grep -- --config
 
   This shows: --config=/var/lib/kubelet/config.yaml
-  That's your file. Open it:
+  Open it:
 
   vi /var/lib/kubelet/config.yaml
 
 
-  STEP 3: Fix kubelet — 3 fields (2 minutes)
+  STEP 2: Fix kubelet — 3 fields (2 minutes)
   ───────────────────────────────────────────
   The authentication/authorization block should look like:
 
     authentication:
       anonymous:
-        enabled: false        ← blocks unauthenticated access
+        enabled: false        ← Task 1.1: blocks unauthenticated access
       webhook:
-        enabled: true         ← tokens verified by API server
+        enabled: true         ← needed for Webhook auth to work
     authorization:
-      mode: Webhook           ← RBAC enforced, not AlwaysAllow
+      mode: Webhook           ← Task 1.2: RBAC enforced, not AlwaysAllow
 
   WHY THESE MATTER:
   • anonymous=true → anyone can hit kubelet:10250 without creds
@@ -304,7 +308,7 @@ do_solution() {
   • AlwaysAllow    → every request is authorized, no RBAC
 
 
-  STEP 4: Fix etcd (1 minute)
+  STEP 3: Fix etcd (1 minute)
   ────────────────────────────
   vi /etc/kubernetes/manifests/etcd.yaml
 
@@ -312,7 +316,7 @@ do_solution() {
     --client-cert-auth=false
 
   Change to:
-    --client-cert-auth=true
+    --client-cert-auth=true   ← Task 2.1
 
   WHY: Without this, anyone with network access to port 2379
   can read ALL cluster secrets without presenting a certificate.
@@ -321,7 +325,7 @@ do_solution() {
   it when you save. No manual restart needed for etcd.
 
 
-  STEP 5: Restart kubelet (30 seconds)
+  STEP 4: Restart kubelet (30 seconds)
   ─────────────────────────────────────
   systemctl daemon-reload && systemctl restart kubelet
 
@@ -329,24 +333,29 @@ do_solution() {
   Always pair these two commands.
 
 
-  STEP 6: Verify (30 seconds)
+  STEP 5: Verify (30 seconds)
   ────────────────────────────
   kubectl get nodes               ← node should be Ready
   kube-bench run --check 4.2.1    ← verify individual fix
   ./run.sh 1 check                ← full grading
 
 
-  COMMON MISTAKES:
-  ────────────────
+  COMMON MISTAKES (from real exam-taker reports):
+  ────────────────────────────────────────────────
+  ✗ Not SSH-ing to the correct node first
+    → The exam says "ssh cksXXXXXX" — zero score if wrong host
+
   ✗ Editing kube-apiserver.yaml instead of kubelet config.yaml
     → kubelet settings are NOT in the API server manifest
 
   ✗ Forgetting systemctl restart kubelet after config change
     → kubelet doesn't watch its config file like static pods do
 
-  ✗ Confusing authentication.webhook with authorization.webhook
+  ✗ Confusing authentication.webhook with authorization.mode
     → authentication.webhook.enabled = verify tokens (true)
     → authorization.mode = check RBAC permissions (Webhook)
+
+  ✗ Running kube-bench without root — incomplete results
 
 SOLUTION
 }
