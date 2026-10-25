@@ -62,10 +62,7 @@ users:
       client-key: /etc/kubernetes/pki/apiserver.key
 KCEOF
 
-  # Back up kube-apiserver manifest
   APISERVER_MANIFEST="/etc/kubernetes/manifests/kube-apiserver.yaml"
-  info "Backing up kube-apiserver manifest to /root/kube-apiserver.yaml.bak..."
-  sudo cp "$APISERVER_MANIFEST" /root/kube-apiserver.yaml.bak
 
   # Only add volume mount — user adds the flags themselves
   info "Adding webhook volume mount to kube-apiserver..."
@@ -96,14 +93,14 @@ PYEOF
       break
     fi
     if [ "$i" -eq 30 ]; then
-      # Restore backup if API server won't come back
-      info "Restoring API server backup..."
-      sudo cp /root/kube-apiserver.yaml.bak "$APISERVER_MANIFEST"
+      # Restore pristine if API server won't come back
+      info "Restoring API server from pristine snapshot..."
+      sudo cp "$PRISTINE_DIR/kube-apiserver.yaml" "$APISERVER_MANIFEST"
       sleep 15
       if kubectl get nodes &>/dev/null; then
-        pass "API server recovered from backup"
+        pass "API server recovered from pristine snapshot"
       else
-        fail "API server still down — run: sudo cp /root/kube-apiserver.yaml.bak $APISERVER_MANIFEST"
+        fail "API server still down — run: sudo cp $PRISTINE_DIR/kube-apiserver.yaml $APISERVER_MANIFEST"
         exit 1
       fi
     fi
@@ -151,7 +148,7 @@ PODEOF
   echo ""
   echo "  ⚠  IMPORTANT: Set the server URL BEFORE enabling the plugin."
   echo "     Wrong order = API server crash (fail-closed with no endpoint)."
-  echo "     Backup is at: /root/kube-apiserver.yaml.bak"
+  echo "     Pristine backup: $PRISTINE_DIR/kube-apiserver.yaml"
   echo ""
   echo "  Verify: Deploy a test pod and confirm it gets DENIED:"
   echo "    kubectl run test --image=nginx"

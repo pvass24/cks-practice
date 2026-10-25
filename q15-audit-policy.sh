@@ -44,9 +44,6 @@ EOF
     rm -f "$AUDIT_LOG_DIR"/*.log 2>/dev/null || true
 
     if [ -f "$APISERVER_MANIFEST" ]; then
-      cp "$APISERVER_MANIFEST" /root/kube-apiserver.yaml.bak
-      info "Backed up API server manifest"
-
       if ! grep -q 'name: audit-policy' "$APISERVER_MANIFEST"; then
         python3 -c "
 import yaml

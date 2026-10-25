@@ -25,8 +25,6 @@ do_setup() {
 
   # Add TCP 2375 to docker.service ExecStart
   if [ -f "$DOCKER_SERVICE" ]; then
-    cp "$DOCKER_SERVICE" "${DOCKER_SERVICE}.bak"
-
     # Add -H tcp://0.0.0.0:2375 to ExecStart if not already present
     if ! grep -q 'tcp://0.0.0.0:2375' "$DOCKER_SERVICE"; then
       sed -i 's|ExecStart=/usr/bin/dockerd|ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:2375|' "$DOCKER_SERVICE"

@@ -15,9 +15,6 @@ do_setup() {
   info "Weakening API server and creating anonymous ClusterRoleBinding..."
 
   if [ -f "$APISERVER_MANIFEST" ]; then
-    cp "$APISERVER_MANIFEST" /root/kube-apiserver.yaml.bak
-    info "Backed up manifest to /root/kube-apiserver.yaml.bak"
-
     # 1. Remove --anonymous-auth flag (defaults to true when absent)
     sed -i '/--anonymous-auth/d' "$APISERVER_MANIFEST"
 
@@ -40,11 +37,7 @@ do_setup() {
     exit 1
   fi
 
-  # Back up admin.conf
-  if [ -f /etc/kubernetes/admin.conf ]; then
-    cp /etc/kubernetes/admin.conf /etc/kubernetes/admin.conf.bak
-    info "Backed up admin.conf"
-  fi
+  # admin.conf doesn't need backup — pristine snapshot handles it
 
   # Create insecure ClusterRoleBinding: system:anonymous -> cluster-admin
   kubectl create clusterrolebinding system:anonymous \
