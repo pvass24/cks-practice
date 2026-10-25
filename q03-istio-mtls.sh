@@ -16,40 +16,44 @@ setup)
     exit 0
   fi
 
-  # Install Istio if not present
+  ISTIO_VERSION="1.26.0"
+
+  # Install Istio CLI if not present
   if ! command -v istioctl &>/dev/null; then
-    info "Downloading Istio CLI..."
-    curl -L https://istio.io/downloadIstio | sh -
-    ISTIO_DIR=$(ls -d istio-* 2>/dev/null | head -1)
-    if [ -n "$ISTIO_DIR" ]; then
-      sudo cp "$ISTIO_DIR/bin/istioctl" /usr/local/bin/
+    info "Downloading Istio ${ISTIO_VERSION}..."
+    curl -sL https://istio.io/downloadIstio | ISTIO_VERSION=$ISTIO_VERSION TARGET_ARCH=x86_64 sh -
+    ISTIO_DIR="istio-${ISTIO_VERSION}"
+    if [ -d "$ISTIO_DIR" ]; then
+      export PATH="$PWD/$ISTIO_DIR/bin:$PATH"
+      echo "export PATH=$PWD/$ISTIO_DIR/bin:\$PATH" >> ~/.bashrc
+      pass "Istio CLI installed"
     else
       fail "Istio download failed."
       exit 1
     fi
   else
     info "Istio CLI already installed."
+    ISTIO_DIR=$(ls -d istio-* 2>/dev/null | head -1)
   fi
 
-  # Install/verify Istio control plane with retry
+  # Configure Cilium to co-exist with Istio (required on Killercoda)
+  if kubectl -n kube-system get configmap cilium-config &>/dev/null 2>&1; then
+    info "Configuring Cilium for Istio co-existence..."
+    kubectl -n kube-system patch configmap cilium-config --type merge -p '{"data":{"kubeProxyReplacement":"true"}}' 2>/dev/null || true
+    kubectl -n kube-system patch configmap cilium-config --type merge -p '{"data":{"socketLB.hostNamespaceOnly":"true"}}' 2>/dev/null || true
+    kubectl -n kube-system patch configmap cilium-config --type merge -p '{"data":{"cni-exclusive":"false"}}' 2>/dev/null || true
+    kubectl -n kube-system patch configmap cilium-config --type merge -p '{"data":{"bpf-lb-sock-hostns-only":"true"}}' 2>/dev/null || true
+    kubectl -n kube-system rollout restart daemonset cilium 2>/dev/null || true
+    pass "Cilium patched for Istio"
+    sleep 10
+  fi
+
+  # Install Istio control plane
   if kubectl get pods -n istio-system 2>/dev/null | grep -q "istiod.*Running"; then
     info "Istio control plane already running."
   else
-    info "Installing Istio control plane (minimal profile + control-plane toleration)..."
-    cat > /tmp/istio-operator.yaml <<'IOEOF'
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-spec:
-  profile: minimal
-  components:
-    pilot:
-      k8s:
-        tolerations:
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
-          effect: NoSchedule
-IOEOF
-    istioctl install -f /tmp/istio-operator.yaml -y || true
+    info "Installing Istio control plane (demo profile)..."
+    istioctl install --set profile=demo -y ${ISTIO_DIR:+--manifests=$ISTIO_DIR/manifests} || true
 
     info "Waiting for istiod to be ready (up to 120s)..."
     for i in $(seq 1 24); do
@@ -58,9 +62,7 @@ IOEOF
         break
       fi
       if [ "$i" -eq 24 ]; then
-        info "Retrying Istio install..."
-        istioctl install -f /tmp/istio-operator.yaml -y || true
-        kubectl wait --for=condition=ready pod -l app=istiod -n istio-system --timeout=90s 2>/dev/null || true
+        fail "Istio control plane not ready after 120s"
       fi
       sleep 5
     done
