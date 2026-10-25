@@ -62,96 +62,31 @@ users:
       client-key: /etc/kubernetes/pki/apiserver.key
 KCEOF
 
-  APISERVER_MANIFEST="/etc/kubernetes/manifests/kube-apiserver.yaml"
-
-  # Only add volume mount — user adds the flags themselves
-  info "Adding webhook volume mount to kube-apiserver..."
-  if ! sudo grep -q "webhook-config" "$APISERVER_MANIFEST" 2>/dev/null; then
-    sudo python3 - "$APISERVER_MANIFEST" <<'PYEOF'
-import yaml, sys
-manifest_path = sys.argv[1]
-with open(manifest_path) as f:
-    m = yaml.safe_load(f)
-c = m["spec"]["containers"][0]
-vm = {"name": "webhook-config", "mountPath": "/etc/kubernetes/webhook", "readOnly": True}
-if not any(v.get("name") == "webhook-config" for v in c.get("volumeMounts", [])):
-    c.setdefault("volumeMounts", []).append(vm)
-vol = {"name": "webhook-config", "hostPath": {"path": "/etc/kubernetes/webhook", "type": "DirectoryOrCreate"}}
-if not any(v.get("name") == "webhook-config" for v in m["spec"].get("volumes", [])):
-    m["spec"].setdefault("volumes", []).append(vol)
-with open(manifest_path, "w") as f:
-    yaml.dump(m, f, default_flow_style=False)
-PYEOF
-  fi
-
-  # Wait for API server to come back after volume mount change
-  info "Waiting for API server to restart..."
-  sleep 10
-  for i in $(seq 1 30); do
-    if kubectl get nodes &>/dev/null; then
-      pass "API server is healthy"
-      break
-    fi
-    if [ "$i" -eq 30 ]; then
-      # Restore pristine if API server won't come back
-      info "Restoring API server from pristine snapshot..."
-      sudo cp "$PRISTINE_DIR/kube-apiserver.yaml" "$APISERVER_MANIFEST"
-      sleep 15
-      if kubectl get nodes &>/dev/null; then
-        pass "API server recovered from pristine snapshot"
-      else
-        fail "API server still down — run: sudo cp $PRISTINE_DIR/kube-apiserver.yaml $APISERVER_MANIFEST"
-        exit 1
-      fi
-    fi
-    echo -n "."
-    sleep 3
-  done
-
-  info "Deploying a simple webhook server pod..."
-  kubectl apply -f - <<'PODEOF'
-apiVersion: v1
-kind: Pod
-metadata:
-  name: image-policy-webhook
-  namespace: kube-system
-  labels:
-    app: image-policy-webhook
-spec:
-  containers:
-    - name: webhook
-      image: registry.k8s.io/pause:3.9
-      ports:
-        - containerPort: 1323
-PODEOF
-
   echo ""
-  pass "Setup complete. Environment is ready."
+  pass "Setup complete. Config files created."
   echo ""
-  echo -e "  ${BOLD}TASK: Configure ImagePolicyWebhook admission controller${NC}"
+  echo -e "  ${BOLD}Context:${NC}"
+  echo "  A team needs to enforce image validation using an external webhook."
+  echo "  The webhook config files have been partially created but contain errors."
   echo ""
-  echo "  The webhook is reachable at:"
-  echo "    https://image-policy-webhook.default"
+  echo -e "  ${BOLD}Task:${NC}"
+  echo "  Enable and configure the ImagePolicyWebhook admission controller."
   echo ""
-  echo "  Two config files + one manifest to edit:"
+  echo "  Fix the following files:"
   echo ""
-  echo "    1. /etc/kubernetes/webhook/admission-config.yml"
-  echo "       → set defaultAllow to false (fail-closed)"
-  echo "       → set allowTTL to 100"
+  echo -e "    ${BOLD}1. /etc/kubernetes/webhook/admission-config.yml${NC}"
+  echo "       - Set defaultAllow to false (fail-closed)"
+  echo "       - Set allowTTL to 100"
   echo ""
-  echo "    2. /etc/kubernetes/webhook/kube-config.yml"
-  echo "       → set the webhook server URL"
+  echo -e "    ${BOLD}2. /etc/kubernetes/webhook/kube-config.yml${NC}"
+  echo "       - Set the webhook server URL"
   echo ""
-  echo "    3. /etc/kubernetes/manifests/kube-apiserver.yaml"
-  echo "       → add ImagePolicyWebhook to --enable-admission-plugins"
-  echo "       → add --admission-control-config-file pointing to admission-config.yml"
+  echo -e "    ${BOLD}3. /etc/kubernetes/manifests/kube-apiserver.yaml${NC}"
+  echo "       - Add ImagePolicyWebhook to --enable-admission-plugins"
+  echo "       - Add --admission-control-config-file=/etc/kubernetes/webhook/admission-config.yml"
+  echo "       - Add volume + volumeMount for /etc/kubernetes/webhook"
   echo ""
-  echo "  ⚠  IMPORTANT: Set the server URL BEFORE enabling the plugin."
-  echo "     Wrong order = API server crash (fail-closed with no endpoint)."
-  echo "     Pristine backup: $PRISTINE_DIR/kube-apiserver.yaml"
-  echo ""
-  echo "  Verify: Deploy a test pod and confirm it gets DENIED:"
-  echo "    kubectl run test --image=nginx"
+  echo -e "  ${CYAN}Recovery: sudo cp $PRISTINE_DIR/kube-apiserver.yaml /etc/kubernetes/manifests/kube-apiserver.yaml${NC}"
   echo ""
   echo "  When ready: ./run.sh 2 check"
   echo ""
@@ -215,7 +150,23 @@ check)
     fail "kube-apiserver manifest does not contain ImagePolicyWebhook"
   fi
 
-  # Check 5: Test pod gets denied by the webhook
+  # Check 4: admission-control-config-file flag points to the config
+  if sudo grep -q 'admission-control-config-file=/etc/kubernetes/webhook/admission-config.yml' "$APISERVER_MANIFEST" 2>/dev/null; then
+    pass "--admission-control-config-file is set correctly"
+    SCORE=$((SCORE + 1))
+  else
+    fail "--admission-control-config-file not set or wrong path"
+  fi
+
+  # Check 5: volume mount for webhook-config exists
+  if sudo grep -q 'webhook-config\|/etc/kubernetes/webhook' "$APISERVER_MANIFEST" 2>/dev/null; then
+    pass "Volume mount for /etc/kubernetes/webhook exists"
+    SCORE=$((SCORE + 1))
+  else
+    fail "Missing volume/volumeMount for /etc/kubernetes/webhook in API server manifest"
+  fi
+
+  # Check 6: Test pod gets denied by the webhook
   if kubectl get nodes &>/dev/null; then
     test_output=$(kubectl run webhook-test --image=nginx --restart=Never 2>&1 || true)
     kubectl delete pod webhook-test --ignore-not-found &>/dev/null 2>&1 || true
@@ -233,7 +184,7 @@ check)
     echo -e "        ${CYAN}Fix order: URL first → defaultAllow false → enable plugin${NC}"
   fi
 
-  score_report $SCORE 5
+  score_report $SCORE 7
   ;;
 
 # ─────────────────────────────────────────
